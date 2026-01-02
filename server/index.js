@@ -95,6 +95,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Simple test endpoint
+app.get('/api/test-ghin', (req, res) => {
+  res.json({ message: 'GHIN routes are working', timestamp: new Date().toISOString() });
+});
+
 // Main analysis endpoint - supports both preview and authenticated modes
 app.post('/api/analyze', optionalAuth, upload.array('scorecards', 10), async (req, res) => {
   try {
@@ -323,9 +328,13 @@ app.get('/api/stats', authenticateToken, (req, res) => {
 
 // Public GHIN Lookup (no auth required - for signup flow)
 app.get('/api/public/ghin-lookup/:ghinNumber', async (req, res) => {
+  console.log('=== GHIN LOOKUP REQUEST ===');
+  console.log('Params:', req.params);
   try {
     const { ghinNumber } = req.params;
+    console.log('Looking up GHIN:', ghinNumber);
     const result = await lookupGHIN(ghinNumber);
+    console.log('Lookup result:', result.success ? 'SUCCESS' : 'FAILED');
     
     if (result.success) {
       // Return limited info for public lookup
