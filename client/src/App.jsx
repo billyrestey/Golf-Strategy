@@ -1230,9 +1230,10 @@ export default function App() {
         }
         
         .logo {
-          font-family: 'Fraunces', Georgia, serif;
-          font-size: 16px;
-          letter-spacing: 1px;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          letter-spacing: 3px;
           text-transform: uppercase;
           color: #7cb97c;
           margin-bottom: 8px;
@@ -2594,6 +2595,21 @@ export default function App() {
           max-width: 900px;
           margin: 0 auto;
           padding: 20px;
+          padding-top: 80px; /* Account for fixed header */
+        }
+
+        .course-strategy-view .results-nav {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 24px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .course-strategy-view .nav-logo {
+          color: rgba(240, 244, 232, 0.5);
+          font-size: 14px;
         }
 
         .course-strategy-content {
@@ -2825,16 +2841,109 @@ export default function App() {
         }
 
         @media print {
-          .course-footer, .results-nav, .back-btn {
+          /* Hide navigation elements */
+          .user-header,
+          .course-footer,
+          .course-strategy-view .results-nav,
+          .back-btn {
             display: none !important;
           }
           
+          /* Reset layout */
           .course-strategy-view {
-            padding: 0;
+            padding: 20px !important;
+            padding-top: 0 !important;
+            max-width: 100% !important;
           }
           
           .course-strategy-content {
-            padding: 0;
+            padding: 0 !important;
+          }
+
+          /* White background, black text */
+          .golf-tool,
+          .course-strategy-view {
+            background: white !important;
+            color: black !important;
+          }
+
+          .course-header h1 {
+            color: black !important;
+            font-size: 28px !important;
+          }
+
+          .course-subtitle {
+            color: #666 !important;
+          }
+
+          .strategy-section {
+            background: white !important;
+            border: 1px solid #ddd !important;
+            border-radius: 8px !important;
+            padding: 16px !important;
+            margin-bottom: 16px !important;
+            page-break-inside: avoid;
+          }
+
+          .section-header h2 {
+            color: black !important;
+            font-size: 18px !important;
+          }
+
+          .overview-text,
+          .hole-strategy,
+          .tip-desc {
+            color: #333 !important;
+          }
+
+          .hole-card {
+            background: #f9f9f9 !important;
+            border: 1px solid #ddd !important;
+            page-break-inside: avoid;
+          }
+
+          .hole-number {
+            color: #2d5a2d !important;
+          }
+
+          .hole-par, .hole-yardage, .course-meta span {
+            color: #666 !important;
+          }
+
+          .hole-danger {
+            color: #c44 !important;
+          }
+
+          .tip-card {
+            background: #f0f7f0 !important;
+            border-left-color: #2d5a2d !important;
+          }
+
+          .tip-title {
+            color: #2d5a2d !important;
+          }
+
+          .target-card {
+            background: #f9f9f9 !important;
+            border: 1px solid #ddd !important;
+          }
+
+          .target-label {
+            color: #666 !important;
+          }
+
+          .target-score {
+            color: black !important;
+          }
+
+          .checklist li {
+            color: #333 !important;
+            border-bottom-color: #eee !important;
+          }
+
+          .scoring-targets {
+            display: flex !important;
+            gap: 16px !important;
           }
         }
       `}</style>
@@ -2859,9 +2968,7 @@ export default function App() {
               </div>
               
               <header className="tool-header">
-                <button className="logo-link" onClick={() => isAuthenticated ? setView('dashboard') : setView('landing')}>
-                  ⛳ GolfStrategy
-                </button>
+                <div className="logo">GOLF STRATEGY</div>
                 <h1 className="tool-title">Improve Your Scores</h1>
               </header>
             </>
