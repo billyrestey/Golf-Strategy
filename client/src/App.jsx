@@ -648,7 +648,7 @@ export default function App() {
             <p>{formData.homeCourse} • {analysis.summary?.currentHandicap || formData.handicap} → {analysis.summary?.targetHandicap || '?'} Stroke Index</p>
           </div>
           <div className="potential-badge">
-            <span className="potential-label">Potential Drop</span>
+            <span className="potential-label">Drop</span>
             <span className="potential-value">{analysis.summary?.potentialStrokeDrop || '?'} strokes</span>
           </div>
         </div>
