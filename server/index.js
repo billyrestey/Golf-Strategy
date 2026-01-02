@@ -401,6 +401,122 @@ app.get('/api/ghin/:ghinNumber/scores', authenticateToken, async (req, res) => {
   }
 });
 
+// Course Strategy endpoint
+app.post('/api/course-strategy', authenticateToken, upload.single('scorecard'), async (req, res) => {
+  try {
+    const { courseName, tees, notes, handicap, missPattern } = req.body;
+    
+    if (!courseName) {
+      return res.status(400).json({ error: 'Course name is required' });
+    }
+
+    // Build the prompt for Claude
+    let scorecardInfo = '';
+    if (req.file) {
+      // Convert image to base64
+      const base64Image = req.file.buffer.toString('base64');
+      const mimeType = req.file.mimetype;
+      scorecardInfo = `\n\nI've also uploaded a scorecard image which shows the hole-by-hole details.`;
+    }
+
+    const prompt = `I'm about to play ${courseName}${tees ? ` from the ${tees}` : ''}.
+
+My handicap is ${handicap || 15} and my typical miss is a ${missPattern || 'slice'}.
+
+${notes ? `Additional notes: ${notes}` : ''}${scorecardInfo}
+
+Please provide a course strategy for me. Research what you know about this course and give me:
+
+1. A brief overview of the course (style, difficulty, notable features)
+2. The 3-5 most important holes I should know about, with specific strategy for each
+3. 4-5 general strategy tips for playing this course given my handicap and miss pattern
+4. Realistic scoring targets (great round, solid round, what to stay under)
+5. A pre-round checklist of things to remember
+
+Format your response as JSON with this structure:
+{
+  "courseName": "Course Name",
+  "tees": "Tees being played",
+  "overview": "Course overview paragraph",
+  "keyHoles": [
+    {
+      "number": 7,
+      "par": 4,
+      "yardage": "420",
+      "strategy": "Strategy for this hole",
+      "danger": "What to avoid"
+    }
+  ],
+  "generalStrategy": [
+    {
+      "title": "Strategy Title",
+      "description": "Detailed description"
+    }
+  ],
+  "scoringTargets": {
+    "great": 82,
+    "solid": 88,
+    "max": 95
+  },
+  "preRoundChecklist": [
+    "Item 1",
+    "Item 2"
+  ]
+}`;
+
+    // Call Claude API
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const messageContent = [];
+    
+    // Add image if uploaded
+    if (req.file) {
+      messageContent.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: req.file.mimetype,
+          data: req.file.buffer.toString('base64')
+        }
+      });
+    }
+    
+    messageContent.push({
+      type: 'text',
+      text: prompt
+    });
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      messages: [
+        {
+          role: 'user',
+          content: messageContent
+        }
+      ]
+    });
+
+    // Parse the response
+    const responseText = response.content[0].text;
+    
+    // Extract JSON from response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Failed to parse course strategy response');
+    }
+    
+    const strategy = JSON.parse(jsonMatch[0]);
+
+    res.json({ success: true, strategy });
+
+  } catch (error) {
+    console.error('Course strategy error:', error);
+    res.status(500).json({ error: 'Failed to generate course strategy' });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

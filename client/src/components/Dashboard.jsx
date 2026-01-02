@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
+export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseStrategy }) {
   const { user, token, refreshUser } = useAuth();
   const [analyses, setAnalyses] = useState([]);
   const [rounds, setRounds] = useState([]);
@@ -222,9 +222,14 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
           <h1>Welcome back, {user?.name?.split(' ')[0] || 'Golfer'}!</h1>
           <p>Track your progress and keep improving</p>
         </div>
-        <button className="new-analysis-btn" onClick={onNewAnalysis}>
-          + New Analysis
-        </button>
+        <div className="dash-header-buttons">
+          <button className="new-course-btn" onClick={onNewCourseStrategy}>
+            🗺️ New Course Strategy
+          </button>
+          <button className="new-analysis-btn" onClick={onNewAnalysis}>
+            + New Analysis
+          </button>
+        </div>
       </div>
 
       {/* Progress Card */}
@@ -688,6 +693,30 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
 
         .dash-welcome p {
           color: rgba(240, 244, 232, 0.6);
+        }
+
+        .dash-header-buttons {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .new-course-btn {
+          padding: 12px 20px;
+          background: rgba(124, 185, 124, 0.15);
+          color: #7cb97c;
+          border: 1px solid rgba(124, 185, 124, 0.3);
+          border-radius: 10px;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s;
+        }
+
+        .new-course-btn:hover {
+          background: rgba(124, 185, 124, 0.25);
+          border-color: rgba(124, 185, 124, 0.5);
         }
 
         .new-analysis-btn {

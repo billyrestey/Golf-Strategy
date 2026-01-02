@@ -7,13 +7,24 @@ import Dashboard from './components/Dashboard';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function App() {
-  const { user, token, isAuthenticated, loading: authLoading, logout, canAnalyze, updateCredits } = useAuth();
+  const { user, token, isAuthenticated, loading: authLoading, logout, canAnalyze, updateCredits, refreshUser } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [showPricingFlow, setShowPricingFlow] = useState(false); // Combined signup + pricing
   const [currentAnalysisId, setCurrentAnalysisId] = useState(null);
-  const [view, setView] = useState('landing'); // 'landing', 'dashboard', 'analysis', 'results'
+  const [view, setView] = useState('landing'); // 'landing', 'dashboard', 'analysis', 'results', 'courseStrategy'
+  
+  // Course Strategy state
+  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [courseStrategyData, setCourseStrategyData] = useState(null);
+  const [courseForm, setCourseForm] = useState({
+    courseName: '',
+    tees: '',
+    notes: '',
+    scorecardImage: null
+  });
+  const [isGeneratingCourse, setIsGeneratingCourse] = useState(false);
   
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -236,6 +247,61 @@ export default function App() {
     resetForm();
     setView('analysis');
     setStep(1);
+  };
+
+  // Open course strategy modal
+  const openCourseStrategy = () => {
+    setCourseForm({
+      courseName: '',
+      tees: '',
+      notes: '',
+      scorecardImage: null
+    });
+    setCourseStrategyData(null);
+    setShowCourseModal(true);
+  };
+
+  // Generate course strategy
+  const generateCourseStrategy = async () => {
+    if (!courseForm.courseName.trim()) return;
+    
+    setIsGeneratingCourse(true);
+    
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('courseName', courseForm.courseName);
+      formDataToSend.append('tees', courseForm.tees);
+      formDataToSend.append('notes', courseForm.notes);
+      formDataToSend.append('handicap', user?.handicap || 15);
+      formDataToSend.append('missPattern', formData.missPattern || 'slice');
+      
+      if (courseForm.scorecardImage) {
+        formDataToSend.append('scorecard', courseForm.scorecardImage);
+      }
+
+      const response = await fetch(`${API_URL}/api/course-strategy`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formDataToSend
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCourseStrategyData(data.strategy);
+        setShowCourseModal(false);
+        setView('courseStrategy');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to generate course strategy');
+      }
+    } catch (error) {
+      console.error('Course strategy error:', error);
+      alert('Failed to generate course strategy');
+    } finally {
+      setIsGeneratingCourse(false);
+    }
   };
 
   // View a specific analysis from dashboard
@@ -984,6 +1050,79 @@ export default function App() {
         isOpen={showPricingModal}
         onClose={() => setShowPricingModal(false)}
       />
+
+      {/* Course Strategy Modal */}
+      {showCourseModal && (
+        <div className="modal-overlay" onClick={() => setShowCourseModal(false)}>
+          <div className="modal-content course-modal" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowCourseModal(false)}>×</button>
+            
+            <h2>🗺️ New Course Strategy</h2>
+            <p className="modal-subtitle">
+              Get a game plan for a course you're about to play
+            </p>
+
+            <div className="form-group">
+              <label>Course Name *</label>
+              <input
+                type="text"
+                value={courseForm.courseName}
+                onChange={e => setCourseForm(prev => ({ ...prev, courseName: e.target.value }))}
+                placeholder="e.g., Pebble Beach Golf Links"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Which Tees?</label>
+              <input
+                type="text"
+                value={courseForm.tees}
+                onChange={e => setCourseForm(prev => ({ ...prev, tees: e.target.value }))}
+                placeholder="e.g., Blue tees (6,500 yards)"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Anything specific you want to know?</label>
+              <textarea
+                value={courseForm.notes}
+                onChange={e => setCourseForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="e.g., Playing in a tournament, nervous about the water holes, wind expected..."
+                rows={3}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Upload Scorecard (optional)</label>
+              <p className="form-hint">Upload an image of the scorecard for hole-by-hole yardages</p>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => setCourseForm(prev => ({ ...prev, scorecardImage: e.target.files[0] }))}
+                className="file-input"
+              />
+              {courseForm.scorecardImage && (
+                <p className="file-name">📎 {courseForm.scorecardImage.name}</p>
+              )}
+            </div>
+
+            <button 
+              className="generate-btn"
+              onClick={generateCourseStrategy}
+              disabled={!courseForm.courseName.trim() || isGeneratingCourse}
+            >
+              {isGeneratingCourse ? (
+                <>
+                  <span className="btn-spinner"></span>
+                  Generating Strategy...
+                </>
+              ) : (
+                'Generate Course Strategy'
+              )}
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* User Header */}
       {isAuthenticated && view !== 'results' && !isAnalyzing && (
@@ -2271,6 +2410,270 @@ export default function App() {
             display: none;
           }
         }
+
+        /* Course Strategy Modal */
+        .course-modal {
+          max-width: 500px;
+        }
+
+        .course-modal .form-group {
+          margin-bottom: 20px;
+        }
+
+        .course-modal label {
+          display: block;
+          font-size: 13px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: rgba(240, 244, 232, 0.7);
+          margin-bottom: 8px;
+        }
+
+        .course-modal input,
+        .course-modal textarea {
+          width: 100%;
+          padding: 14px 16px;
+          font-size: 16px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+          color: #fff;
+          font-family: inherit;
+        }
+
+        .course-modal input:focus,
+        .course-modal textarea:focus {
+          outline: none;
+          border-color: #7cb97c;
+        }
+
+        .form-hint {
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.5);
+          margin-bottom: 8px;
+        }
+
+        .file-input {
+          padding: 12px !important;
+          cursor: pointer;
+        }
+
+        .file-name {
+          font-size: 13px;
+          color: #7cb97c;
+          margin-top: 8px;
+        }
+
+        .generate-btn {
+          width: 100%;
+          padding: 16px;
+          font-size: 16px;
+          font-weight: 600;
+          background: linear-gradient(135deg, #7cb97c, #5a9a5a);
+          color: #0d1f0d;
+          border: none;
+          border-radius: 12px;
+          cursor: pointer;
+          font-family: inherit;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .generate-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .btn-spinner {
+          width: 18px;
+          height: 18px;
+          border: 2px solid rgba(0, 0, 0, 0.2);
+          border-top-color: #0d1f0d;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+
+        /* Course Strategy View */
+        .course-strategy-view {
+          max-width: 900px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+
+        .course-strategy-content {
+          padding: 20px 0;
+        }
+
+        .course-header {
+          text-align: center;
+          margin-bottom: 32px;
+        }
+
+        .course-header h1 {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 32px;
+          margin-bottom: 8px;
+        }
+
+        .course-subtitle {
+          color: rgba(240, 244, 232, 0.6);
+          font-size: 15px;
+        }
+
+        .strategy-section {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 20px;
+        }
+
+        .overview-text {
+          font-size: 16px;
+          line-height: 1.7;
+          color: rgba(240, 244, 232, 0.85);
+        }
+
+        .key-holes {
+          display: grid;
+          gap: 16px;
+        }
+
+        .hole-card {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 16px;
+        }
+
+        .hole-number {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 18px;
+          font-weight: 600;
+          color: #7cb97c;
+          margin-bottom: 4px;
+        }
+
+        .hole-info {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 8px;
+        }
+
+        .hole-par, .hole-yardage {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: rgba(240, 244, 232, 0.5);
+        }
+
+        .hole-strategy {
+          font-size: 15px;
+          color: rgba(240, 244, 232, 0.85);
+          line-height: 1.5;
+        }
+
+        .hole-danger {
+          margin-top: 8px;
+          font-size: 13px;
+          color: #e57373;
+        }
+
+        .strategy-tips {
+          display: grid;
+          gap: 12px;
+        }
+
+        .tip-card {
+          background: rgba(124, 185, 124, 0.08);
+          border-left: 3px solid #7cb97c;
+          padding: 16px;
+          border-radius: 0 8px 8px 0;
+        }
+
+        .tip-title {
+          font-weight: 600;
+          margin-bottom: 4px;
+          color: #7cb97c;
+        }
+
+        .tip-desc {
+          font-size: 14px;
+          color: rgba(240, 244, 232, 0.8);
+          line-height: 1.5;
+        }
+
+        .scoring-targets {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+          .scoring-targets {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .target-card {
+          text-align: center;
+          padding: 20px;
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .target-card.good {
+          border-color: rgba(124, 185, 124, 0.5);
+          background: rgba(124, 185, 124, 0.1);
+        }
+
+        .target-card.solid {
+          border-color: rgba(124, 185, 124, 0.3);
+        }
+
+        .target-label {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: rgba(240, 244, 232, 0.5);
+          margin-bottom: 8px;
+        }
+
+        .target-score {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 32px;
+          font-weight: 600;
+          color: #fff;
+        }
+
+        .checklist {
+          list-style: none;
+          padding: 0;
+        }
+
+        .checklist li {
+          padding: 12px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          color: rgba(240, 244, 232, 0.8);
+        }
+
+        .checklist li:last-child {
+          border-bottom: none;
+        }
+
+        .checklist li::before {
+          content: '☐ ';
+          color: #7cb97c;
+        }
+
+        .course-footer {
+          padding: 20px 0;
+          text-align: center;
+        }
       `}</style>
       
       {/* Dashboard View */}
@@ -2278,6 +2681,7 @@ export default function App() {
         <Dashboard 
           onNewAnalysis={startNewAnalysis}
           onViewAnalysis={viewAnalysis}
+          onNewCourseStrategy={openCourseStrategy}
         />
       )}
 
@@ -2310,6 +2714,125 @@ export default function App() {
 
       {/* Results View */}
       {(view === 'results' || step === 5) && analysis && renderResults()}
+
+      {/* Course Strategy View */}
+      {view === 'courseStrategy' && courseStrategyData && (
+        <div className="course-strategy-view">
+          <div className="results-nav">
+            <button className="back-btn" onClick={() => { setView('dashboard'); setCourseStrategyData(null); }}>
+              ← Back to Dashboard
+            </button>
+            <span className="nav-logo">🗺️ Course Strategy</span>
+          </div>
+
+          <div className="course-strategy-content">
+            <div className="course-header">
+              <h1>{courseStrategyData.courseName}</h1>
+              <p className="course-subtitle">
+                {courseStrategyData.tees && `${courseStrategyData.tees} • `}
+                Strategy for {user?.handicap || 15} handicap
+              </p>
+            </div>
+
+            {/* Overview */}
+            {courseStrategyData.overview && (
+              <section className="strategy-section">
+                <div className="section-header">
+                  <span className="section-icon">📋</span>
+                  <h2>Course Overview</h2>
+                </div>
+                <p className="overview-text">{courseStrategyData.overview}</p>
+              </section>
+            )}
+
+            {/* Key Holes */}
+            {courseStrategyData.keyHoles && courseStrategyData.keyHoles.length > 0 && (
+              <section className="strategy-section">
+                <div className="section-header">
+                  <span className="section-icon">⚠️</span>
+                  <h2>Key Holes to Watch</h2>
+                </div>
+                <div className="key-holes">
+                  {courseStrategyData.keyHoles.map((hole, i) => (
+                    <div key={i} className="hole-card">
+                      <div className="hole-number">Hole {hole.number}</div>
+                      <div className="hole-info">
+                        {hole.par && <span className="hole-par">Par {hole.par}</span>}
+                        {hole.yardage && <span className="hole-yardage">{hole.yardage} yds</span>}
+                      </div>
+                      <p className="hole-strategy">{hole.strategy}</p>
+                      {hole.danger && <p className="hole-danger">⚠️ {hole.danger}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* General Strategy */}
+            {courseStrategyData.generalStrategy && (
+              <section className="strategy-section">
+                <div className="section-header">
+                  <span className="section-icon">🎯</span>
+                  <h2>Your Game Plan</h2>
+                </div>
+                <div className="strategy-tips">
+                  {courseStrategyData.generalStrategy.map((tip, i) => (
+                    <div key={i} className="tip-card">
+                      <div className="tip-title">{tip.title}</div>
+                      <p className="tip-desc">{tip.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Scoring Targets */}
+            {courseStrategyData.scoringTargets && (
+              <section className="strategy-section">
+                <div className="section-header">
+                  <span className="section-icon">🏆</span>
+                  <h2>Scoring Targets</h2>
+                </div>
+                <div className="scoring-targets">
+                  <div className="target-card good">
+                    <div className="target-label">Great Round</div>
+                    <div className="target-score">{courseStrategyData.scoringTargets.great}</div>
+                  </div>
+                  <div className="target-card solid">
+                    <div className="target-label">Solid Round</div>
+                    <div className="target-score">{courseStrategyData.scoringTargets.solid}</div>
+                  </div>
+                  <div className="target-card">
+                    <div className="target-label">Keep It Under</div>
+                    <div className="target-score">{courseStrategyData.scoringTargets.max}</div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Pre-Round Checklist */}
+            {courseStrategyData.preRoundChecklist && (
+              <section className="strategy-section">
+                <div className="section-header">
+                  <span className="section-icon">✅</span>
+                  <h2>Pre-Round Checklist</h2>
+                </div>
+                <ul className="checklist">
+                  {courseStrategyData.preRoundChecklist.map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+
+          <div className="course-footer">
+            <button className="back-btn" onClick={() => { setView('dashboard'); setCourseStrategyData(null); }}>
+              ← Back to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
