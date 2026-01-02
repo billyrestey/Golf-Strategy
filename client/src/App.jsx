@@ -329,6 +329,22 @@ export default function App() {
     }
   };
 
+  // View a specific course strategy from dashboard
+  const viewCourseStrategy = async (strategyId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/course-strategies/${strategyId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCourseStrategyData(data.strategy.strategy_json);
+        setView('courseStrategy');
+      }
+    } catch (error) {
+      console.error('Error loading course strategy:', error);
+    }
+  };
+
   // Redirect to dashboard after login if user already has analyses
   useEffect(() => {
     if (isAuthenticated && view === 'landing') {
@@ -1213,20 +1229,13 @@ export default function App() {
           position: relative;
         }
         
-        .logo-link {
-          font-family: 'DM Sans', sans-serif;
-          font-size: 15px;
-          font-weight: 600;
+        .logo {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 16px;
+          letter-spacing: 1px;
+          text-transform: uppercase;
           color: #7cb97c;
-          margin-bottom: 12px;
-          background: none;
-          border: none;
-          cursor: pointer;
-          display: block;
-        }
-
-        .logo-link:hover {
-          color: #a8d4a8;
+          margin-bottom: 8px;
         }
         
         .tool-title {
@@ -2276,7 +2285,6 @@ export default function App() {
           cursor: pointer;
           font-family: 'DM Sans', sans-serif;
           padding: 0;
-          letter-spacing: 0;
           white-space: nowrap;
         }
         
@@ -2289,8 +2297,23 @@ export default function App() {
           font-size: 16px;
           color: #7cb97c;
           font-family: 'DM Sans', sans-serif;
-          letter-spacing: 0;
           white-space: nowrap;
+        }
+
+        .logo-link {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 15px;
+          font-weight: 600;
+          color: #7cb97c;
+          margin-bottom: 12px;
+          background: none;
+          border: none;
+          cursor: pointer;
+          display: block;
+        }
+
+        .logo-link:hover {
+          color: #a8d4a8;
         }
 
         .landing-header {
@@ -2323,7 +2346,7 @@ export default function App() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: rgba(13, 31, 13, 0.95);
+          background: rgba(13, 31, 13, 0.9);
           backdrop-filter: blur(10px);
           border-bottom: 1px solid rgba(255, 255, 255, 0.1);
           z-index: 50;
@@ -2333,12 +2356,10 @@ export default function App() {
           display: flex;
           align-items: center;
           gap: 12px;
-          flex-shrink: 0;
         }
         
         .user-name {
           font-weight: 500;
-          font-size: 14px;
         }
         
         .user-badge {
@@ -2401,8 +2422,6 @@ export default function App() {
         @media (max-width: 768px) {
           .user-header {
             padding: 10px 16px;
-            flex-wrap: wrap;
-            gap: 8px;
           }
 
           .user-info {
@@ -2745,8 +2764,78 @@ export default function App() {
         }
 
         .course-footer {
-          padding: 20px 0;
-          text-align: center;
+          padding: 24px 0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 16px;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          margin-top: 20px;
+        }
+
+        .course-footer-actions {
+          display: flex;
+          gap: 12px;
+        }
+
+        .save-btn, .share-btn {
+          padding: 12px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          border-radius: 10px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s;
+        }
+
+        .save-btn {
+          background: linear-gradient(135deg, #7cb97c, #5a9a5a);
+          color: #0d1f0d;
+          border: none;
+        }
+
+        .save-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(124, 185, 124, 0.3);
+        }
+
+        .share-btn {
+          background: transparent;
+          color: #7cb97c;
+          border: 1px solid rgba(124, 185, 124, 0.4);
+        }
+
+        .share-btn:hover {
+          background: rgba(124, 185, 124, 0.1);
+        }
+
+        @media (max-width: 600px) {
+          .course-footer {
+            flex-direction: column;
+          }
+          
+          .course-footer-actions {
+            width: 100%;
+          }
+
+          .save-btn, .share-btn {
+            flex: 1;
+          }
+        }
+
+        @media print {
+          .course-footer, .results-nav, .back-btn {
+            display: none !important;
+          }
+          
+          .course-strategy-view {
+            padding: 0;
+          }
+          
+          .course-strategy-content {
+            padding: 0;
+          }
         }
       `}</style>
       
@@ -2756,6 +2845,7 @@ export default function App() {
           onNewAnalysis={startNewAnalysis}
           onViewAnalysis={viewAnalysis}
           onNewCourseStrategy={openCourseStrategy}
+          onViewCourseStrategy={viewCourseStrategy}
         />
       )}
 
@@ -2906,6 +2996,25 @@ export default function App() {
             <button className="back-btn" onClick={() => { setView('dashboard'); setCourseStrategyData(null); }}>
               ← Back to Dashboard
             </button>
+            <div className="course-footer-actions">
+              <button className="save-btn" onClick={() => window.print()}>
+                🖨️ Print / Save PDF
+              </button>
+              <button className="share-btn" onClick={() => {
+                if (navigator.share) {
+                  navigator.share({
+                    title: `${courseStrategyData.courseName} - Course Strategy`,
+                    text: `My strategy for playing ${courseStrategyData.courseName}`,
+                    url: window.location.href
+                  });
+                } else {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert('Link copied to clipboard!');
+                }
+              }}>
+                📤 Share
+              </button>
+            </div>
           </div>
         </div>
       )}
