@@ -321,7 +321,34 @@ app.get('/api/stats', authenticateToken, (req, res) => {
   }
 });
 
-// GHIN Handicap Lookup
+// Public GHIN Lookup (no auth required - for initial signup flow)
+app.get('/api/ghin/lookup/:ghinNumber', async (req, res) => {
+  try {
+    const { ghinNumber } = req.params;
+    const result = await lookupGHIN(ghinNumber);
+    
+    if (result.success) {
+      // Return limited info for public lookup
+      res.json({
+        success: true,
+        golfer: {
+          firstName: result.golfer.firstName,
+          lastName: result.golfer.lastName,
+          handicapIndex: result.golfer.handicapIndex,
+          club: result.golfer.club,
+          state: result.golfer.state
+        }
+      });
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    console.error('Public GHIN lookup error:', error);
+    res.status(500).json({ error: 'Failed to lookup GHIN' });
+  }
+});
+
+// GHIN Handicap Lookup (authenticated)
 app.get('/api/ghin/:ghinNumber', authenticateToken, async (req, res) => {
   try {
     const { ghinNumber } = req.params;
@@ -345,19 +372,19 @@ app.post('/api/ghin/link', authenticateToken, async (req, res) => {
     const result = await lookupGHIN(ghinNumber);
     
     if (!result.success) {
-      return res.status(404).json({ error: 'GHIN number not found' });
+      return res.status(404).json({ error: result.error || 'GHIN number not found' });
     }
     
     // Update user with GHIN number and current handicap
     updateUser(req.user.userId, {
       ghin_number: ghinNumber,
-      handicap: result.data.handicapIndex,
-      name: result.data.firstName + ' ' + result.data.lastName
+      handicap: result.golfer.handicapIndex,
+      name: result.golfer.fullName
     });
     
     res.json({
       success: true,
-      ghin: result.data
+      golfer: result.golfer
     });
   } catch (error) {
     console.error('GHIN link error:', error);
@@ -377,14 +404,14 @@ app.post('/api/ghin/refresh', authenticateToken, async (req, res) => {
     
     // Update user's handicap
     updateUser(req.user.userId, {
-      handicap: result.data.handicapIndex
+      handicap: result.golfer.handicapIndex
     });
     
     res.json({
       success: true,
-      handicapIndex: result.data.handicapIndex,
-      trend: result.data.trend,
-      lastRevision: result.data.lastRevision
+      handicapIndex: result.golfer.handicapIndex,
+      lowIndex: result.golfer.lowHandicapIndex,
+      lastRevision: result.golfer.revision_date
     });
   } catch (error) {
     console.error('GHIN refresh error:', error);

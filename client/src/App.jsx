@@ -32,6 +32,7 @@ export default function App() {
     handicap: '',
     targetHandicap: '',
     homeCourse: '',
+    ghinNumber: '',
     missPattern: '',
     missDescription: '',
     strengths: [],
@@ -41,6 +42,7 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const [error, setError] = useState(null);
+  const [ghinLookup, setGhinLookup] = useState({ loading: false, error: null, golfer: null });
 
   const strengthOptions = [
     { id: 'driving', label: 'Driving Distance', icon: '🚀' },
@@ -185,15 +187,46 @@ export default function App() {
     setFormData({
       name: '',
       handicap: '',
+      targetHandicap: '',
       homeCourse: '',
+      ghinNumber: '',
       missPattern: '',
       missDescription: '',
       strengths: [],
       uploadedCards: []
     });
     setError(null);
+    setGhinLookup({ loading: false, error: null, golfer: null });
     // Go to dashboard if logged in, otherwise landing
     setView(isAuthenticated ? 'dashboard' : 'landing');
+  };
+
+  // GHIN Lookup function
+  const lookupGHIN = async (ghinNumber) => {
+    if (!ghinNumber || ghinNumber.length < 7) return;
+    
+    setGhinLookup({ loading: true, error: null, golfer: null });
+    
+    try {
+      const response = await fetch(`${API_URL}/api/ghin/lookup/${ghinNumber}`);
+      const data = await response.json();
+      
+      if (data.success && data.golfer) {
+        setGhinLookup({ loading: false, error: null, golfer: data.golfer });
+        // Auto-populate fields
+        setFormData(prev => ({
+          ...prev,
+          name: prev.name || `${data.golfer.firstName}`,
+          handicap: data.golfer.handicapIndex?.toString() || prev.handicap,
+          ghinNumber: ghinNumber
+        }));
+      } else {
+        setGhinLookup({ loading: false, error: data.error || 'GHIN not found', golfer: null });
+      }
+    } catch (error) {
+      console.error('GHIN lookup error:', error);
+      setGhinLookup({ loading: false, error: 'Lookup failed', golfer: null });
+    }
   };
 
   // Unlock full analysis after signup/login
@@ -393,6 +426,42 @@ export default function App() {
         <h2>Let's start with the basics</h2>
         <p>Tell us about your game so we can build your strategy.</p>
       </div>
+
+      {/* GHIN Lookup */}
+      <div className="form-group ghin-lookup-group">
+        <label>GHIN Number <span className="optional">(optional)</span></label>
+        <div className="ghin-input-row">
+          <input
+            type="text"
+            value={formData.ghinNumber}
+            onChange={(e) => setFormData(prev => ({ ...prev, ghinNumber: e.target.value }))}
+            placeholder="e.g., 1234567"
+            maxLength={10}
+          />
+          <button 
+            type="button"
+            className="ghin-lookup-btn"
+            onClick={() => lookupGHIN(formData.ghinNumber)}
+            disabled={ghinLookup.loading || !formData.ghinNumber || formData.ghinNumber.length < 7}
+          >
+            {ghinLookup.loading ? '...' : 'Lookup'}
+          </button>
+        </div>
+        {ghinLookup.golfer && (
+          <div className="ghin-result success">
+            ✓ Found: {ghinLookup.golfer.firstName} {ghinLookup.golfer.lastName} ({ghinLookup.golfer.handicapIndex} index) — {ghinLookup.golfer.club}
+          </div>
+        )}
+        {ghinLookup.error && (
+          <div className="ghin-result error">
+            {ghinLookup.error}
+          </div>
+        )}
+      </div>
+
+      <div className="form-divider">
+        <span>or enter manually</span>
+      </div>
       
       <div className="form-group">
         <label>Your Name</label>
@@ -400,7 +469,7 @@ export default function App() {
           type="text"
           value={formData.name}
           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-          placeholder="e.g., Kwon"
+          placeholder="e.g., Billy"
         />
       </div>
       
@@ -412,7 +481,7 @@ export default function App() {
             step="0.1"
             value={formData.handicap}
             onChange={(e) => setFormData(prev => ({ ...prev, handicap: e.target.value }))}
-            placeholder="e.g., 12.4"
+            placeholder="e.g., 14.7"
           />
         </div>
         <div className="form-group">
@@ -422,7 +491,7 @@ export default function App() {
             step="0.1"
             value={formData.targetHandicap}
             onChange={(e) => setFormData(prev => ({ ...prev, targetHandicap: e.target.value }))}
-            placeholder="e.g., 9.7"
+            placeholder="e.g., 10.0"
           />
         </div>
       </div>
@@ -1230,10 +1299,9 @@ export default function App() {
         }
         
         .logo {
-          font-family: 'DM Sans', sans-serif;
-          font-size: 13px;
-          font-weight: 500;
-          letter-spacing: 3px;
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 16px;
+          letter-spacing: 1px;
           text-transform: uppercase;
           color: #7cb97c;
           margin-bottom: 8px;
@@ -1328,6 +1396,88 @@ export default function App() {
           .form-row-half {
             grid-template-columns: 1fr;
           }
+        }
+
+        /* GHIN Lookup Styles */
+        .ghin-lookup-group {
+          background: rgba(124, 185, 124, 0.08);
+          border: 1px solid rgba(124, 185, 124, 0.2);
+          border-radius: 12px;
+          padding: 20px;
+          margin-bottom: 24px;
+        }
+
+        .ghin-lookup-group label .optional {
+          font-weight: 400;
+          text-transform: none;
+          letter-spacing: 0;
+          opacity: 0.6;
+        }
+
+        .ghin-input-row {
+          display: flex;
+          gap: 12px;
+        }
+
+        .ghin-input-row input {
+          flex: 1;
+        }
+
+        .ghin-lookup-btn {
+          padding: 16px 24px;
+          font-size: 14px;
+          font-weight: 600;
+          background: linear-gradient(135deg, #7cb97c, #5a9a5a);
+          color: #0d1f0d;
+          border: none;
+          border-radius: 12px;
+          cursor: pointer;
+          font-family: inherit;
+          white-space: nowrap;
+        }
+
+        .ghin-lookup-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .ghin-result {
+          margin-top: 12px;
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-size: 14px;
+        }
+
+        .ghin-result.success {
+          background: rgba(124, 185, 124, 0.15);
+          color: #7cb97c;
+        }
+
+        .ghin-result.error {
+          background: rgba(229, 115, 115, 0.15);
+          color: #e57373;
+        }
+
+        .form-divider {
+          display: flex;
+          align-items: center;
+          margin: 24px 0;
+          gap: 16px;
+        }
+
+        .form-divider::before,
+        .form-divider::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .form-divider span {
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.4);
+          text-transform: uppercase;
+          letter-spacing: 1px;
         }
         
         .miss-options {
@@ -2968,8 +3118,10 @@ export default function App() {
               </div>
               
               <header className="tool-header">
-                <div className="logo">BUILD A STRATEGY</div>
-                <h1 className="tool-title">Improve Your Golf Game</h1>
+                <button className="logo-link" onClick={() => isAuthenticated ? setView('dashboard') : setView('landing')}>
+                  ⛳ GolfStrategy
+                </button>
+                <h1 className="tool-title">Improve Your Scores</h1>
               </header>
             </>
           )}
