@@ -45,7 +45,8 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://golf-strategy.vercel.app',
   'https://www.golfstrategy.app',
-  'https://golfstrategy.app'
+  'https://golfstrategy.app',
+  'https://golf-strategy-production.up.railway.app'
 ];
 
 app.use(cors({

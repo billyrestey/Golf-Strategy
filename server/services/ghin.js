@@ -1,5 +1,6 @@
 // GHIN API Service
-// Uses admin credentials to look up golfer data
+// Note: GHIN's unofficial API may change without notice
+// This service attempts to authenticate and lookup golfer data
 
 let authToken = null;
 let tokenExpiry = null;
@@ -21,24 +22,30 @@ async function authenticate() {
 
   try {
     console.log('Authenticating with GHIN...');
+    
+    // Try the mobile app login endpoint
     const response = await fetch('https://api2.ghin.com/api/v1/golfer_login.json', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'User-Agent': 'GHIN/1.0',
       },
       body: JSON.stringify({
         user: {
           email_or_ghin: email,
           password: password,
           remember_me: true
-        }
+        },
+        token: '' // Some versions of the API require this field
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('GHIN auth failed:', response.status, errorText);
+      
+      // API may have changed - return graceful failure
       return null;
     }
 
@@ -46,16 +53,15 @@ async function authenticate() {
     
     if (data.golfer_user && data.golfer_user.golfer_user_token) {
       authToken = data.golfer_user.golfer_user_token;
-      // Token typically valid for 24 hours, refresh after 12
       tokenExpiry = Date.now() + (12 * 60 * 60 * 1000);
       console.log('GHIN authentication successful');
       return authToken;
     }
 
-    console.error('GHIN auth response missing token:', data);
+    console.error('GHIN auth response missing token:', JSON.stringify(data));
     return null;
   } catch (error) {
-    console.error('GHIN auth error:', error);
+    console.error('GHIN auth error:', error.message);
     return null;
   }
 }
