@@ -2722,7 +2722,7 @@ export default function App() {
             <button className="back-btn" onClick={() => { setView('dashboard'); setCourseStrategyData(null); }}>
               ← Back to Dashboard
             </button>
-            <span className="nav-logo">🗺️ Course Strategy</span>
+            <span className="nav-logo">Course Strategy</span>
           </div>
 
           <div className="course-strategy-content">
