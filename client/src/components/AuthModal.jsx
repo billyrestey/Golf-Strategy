@@ -1,15 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
+export default function AuthModal({ isOpen, onClose, initialMode = 'login', defaultName = '' }) {
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [name, setName] = useState(defaultName);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { login, register } = useAuth();
+
+  // Update name when defaultName changes
+  useEffect(() => {
+    if (defaultName && !name) {
+      setName(defaultName);
+    }
+  }, [defaultName]);
+
+  // Reset mode when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      if (defaultName) {
+        setName(defaultName);
+      }
+    }
+  }, [isOpen, initialMode, defaultName]);
 
   if (!isOpen) return null;
 

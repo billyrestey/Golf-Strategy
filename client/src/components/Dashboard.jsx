@@ -13,6 +13,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
   const [showRoundModal, setShowRoundModal] = useState(false);
   const [showGHINModal, setShowGHINModal] = useState(false);
   const [ghinNumber, setGhinNumber] = useState('');
+  const [targetStrokeIndex, setTargetStrokeIndex] = useState('');
   const [ghinLoading, setGhinLoading] = useState(false);
   const [ghinError, setGhinError] = useState('');
   const [ghinData, setGhinData] = useState(null);
@@ -192,7 +193,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
   // Calculate progress toward goal
   const latestAnalysis = analyses[0];
   const currentHandicap = user?.handicap || latestAnalysis?.handicap || 15;
-  const targetHandicap = latestAnalysis?.analysis_json?.summary?.targetHandicap || Math.max(currentHandicap - 5, 0);
+  const targetHandicap = user?.target_handicap || latestAnalysis?.analysis_json?.summary?.targetHandicap || Math.max(currentHandicap - 5, 0);
   const startingHandicap = currentHandicap + 3; // Assume started 3 strokes higher
   const progressPercent = Math.min(100, Math.max(0, 
     ((startingHandicap - currentHandicap) / (startingHandicap - targetHandicap)) * 100
@@ -249,6 +250,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
             className="link-ghin-btn"
             onClick={() => {
               setGhinNumber(user?.handicap?.toString() || '');
+              setTargetStrokeIndex(user?.target_handicap?.toString() || '');
               setShowGHINModal(true);
             }}
           >
@@ -569,15 +571,27 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
               Keep your stroke index up to date to track your progress toward your goals.
             </p>
             
-            <div className="form-group">
-              <label>Current Stroke Index</label>
-              <input
-                type="number"
-                step="0.1"
-                value={ghinNumber}
-                onChange={e => setGhinNumber(e.target.value)}
-                placeholder="14.7"
-              />
+            <div className="form-row">
+              <div className="form-group">
+                <label>Current Stroke Index</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={ghinNumber}
+                  onChange={e => setGhinNumber(e.target.value)}
+                  placeholder="14.7"
+                />
+              </div>
+              <div className="form-group">
+                <label>Target Stroke Index</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={targetStrokeIndex}
+                  onChange={e => setTargetStrokeIndex(e.target.value)}
+                  placeholder="10.0"
+                />
+              </div>
             </div>
             
             {ghinError && (
@@ -596,17 +610,21 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
                       'Content-Type': 'application/json',
                       'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ handicap: parseFloat(ghinNumber) })
+                    body: JSON.stringify({ 
+                      handicap: parseFloat(ghinNumber),
+                      target_handicap: targetStrokeIndex ? parseFloat(targetStrokeIndex) : null
+                    })
                   });
                   if (response.ok) {
                     setShowGHINModal(false);
                     setGhinNumber('');
+                    setTargetStrokeIndex('');
                     if (refreshUser) refreshUser();
                   } else {
-                    setGhinError('Failed to update handicap');
+                    setGhinError('Failed to update stroke index');
                   }
                 } catch (error) {
-                  setGhinError('Failed to update handicap');
+                  setGhinError('Failed to update stroke index');
                 } finally {
                   setGhinLoading(false);
                 }

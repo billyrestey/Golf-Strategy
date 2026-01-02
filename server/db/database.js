@@ -22,6 +22,7 @@ db.exec(`
     password_hash TEXT NOT NULL,
     name TEXT,
     handicap REAL,
+    target_handicap REAL,
     home_course TEXT,
     ghin_number TEXT,
     subscription_status TEXT DEFAULT 'free',

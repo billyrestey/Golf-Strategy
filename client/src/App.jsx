@@ -18,6 +18,7 @@ export default function App() {
   const [formData, setFormData] = useState({
     name: '',
     handicap: '',
+    targetHandicap: '',
     homeCourse: '',
     missPattern: '',
     missDescription: '',
@@ -320,15 +321,27 @@ export default function App() {
         />
       </div>
       
-      <div className="form-group">
-        <label>Current Stroke Index</label>
-        <input
-          type="number"
-          step="0.1"
-          value={formData.handicap}
-          onChange={(e) => setFormData(prev => ({ ...prev, handicap: e.target.value }))}
-          placeholder="e.g., 14.7"
-        />
+      <div className="form-row-half">
+        <div className="form-group">
+          <label>Current Stroke Index</label>
+          <input
+            type="number"
+            step="0.1"
+            value={formData.handicap}
+            onChange={(e) => setFormData(prev => ({ ...prev, handicap: e.target.value }))}
+            placeholder="e.g., 14.7"
+          />
+        </div>
+        <div className="form-group">
+          <label>Target Stroke Index</label>
+          <input
+            type="number"
+            step="0.1"
+            value={formData.targetHandicap}
+            onChange={(e) => setFormData(prev => ({ ...prev, targetHandicap: e.target.value }))}
+            placeholder="e.g., 10.0"
+          />
+        </div>
       </div>
       
       <div className="form-group">
@@ -961,6 +974,7 @@ export default function App() {
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)}
         initialMode={authMode}
+        defaultName={formData.name}
       />
       
       {/* Pricing Modal */}
@@ -1144,6 +1158,18 @@ export default function App() {
         .form-group input::placeholder,
         .form-group textarea::placeholder {
           color: rgba(255, 255, 255, 0.3);
+        }
+
+        .form-row-half {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+
+        @media (max-width: 500px) {
+          .form-row-half {
+            grid-template-columns: 1fr;
+          }
         }
         
         .miss-options {

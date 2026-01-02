@@ -88,6 +88,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         name: user.name,
         handicap: user.handicap,
+        target_handicap: user.target_handicap,
         homeCourse: user.home_course,
         credits: user.credits,
         subscriptionStatus: user.subscription_status
@@ -113,6 +114,7 @@ router.get('/me', authenticateToken, (req, res) => {
       email: user.email,
       name: user.name,
       handicap: user.handicap,
+      target_handicap: user.target_handicap,
       homeCourse: user.home_course,
       credits: user.credits,
       subscriptionStatus: user.subscription_status
@@ -127,11 +129,12 @@ router.get('/me', authenticateToken, (req, res) => {
 // Update profile
 router.put('/profile', authenticateToken, (req, res) => {
   try {
-    const { name, handicap, homeCourse } = req.body;
+    const { name, handicap, target_handicap, homeCourse } = req.body;
     
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (handicap !== undefined) updates.handicap = handicap;
+    if (target_handicap !== undefined) updates.target_handicap = target_handicap;
     if (homeCourse !== undefined) updates.home_course = homeCourse;
 
     updateUser(req.user.userId, updates);
