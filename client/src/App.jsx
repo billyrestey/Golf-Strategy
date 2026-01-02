@@ -1075,7 +1075,7 @@ export default function App() {
         }
         
         .logo {
-          font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
+          font-family: 'Fraunces', Georgia, serif;
           font-size: 16px;
           letter-spacing: 1px;
           text-transform: uppercase;
@@ -2128,7 +2128,7 @@ export default function App() {
           font-size: 18px;
           font-weight: 600;
           cursor: pointer;
-          font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
+          font-family: 'Fraunces', Georgia, serif;
           padding: 0;
           letter-spacing: -0.5px;
         }
@@ -2141,7 +2141,7 @@ export default function App() {
           font-weight: 600;
           font-size: 18px;
           color: #7cb97c;
-          font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
+          font-family: 'Fraunces', Georgia, serif;
           letter-spacing: -0.5px;
         }
 
