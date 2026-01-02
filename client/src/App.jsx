@@ -1213,13 +1213,20 @@ export default function App() {
           position: relative;
         }
         
-        .logo {
-          font-family: 'Fraunces', Georgia, serif;
-          font-size: 16px;
-          letter-spacing: 1px;
-          text-transform: uppercase;
+        .logo-link {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 15px;
+          font-weight: 600;
           color: #7cb97c;
-          margin-bottom: 8px;
+          margin-bottom: 12px;
+          background: none;
+          border: none;
+          cursor: pointer;
+          display: block;
+        }
+
+        .logo-link:hover {
+          color: #a8d4a8;
         }
         
         .tool-title {
@@ -2264,12 +2271,13 @@ export default function App() {
           background: none;
           border: none;
           color: #7cb97c;
-          font-size: 18px;
+          font-size: 16px;
           font-weight: 600;
           cursor: pointer;
-          font-family: 'Fraunces', Georgia, serif;
+          font-family: 'DM Sans', sans-serif;
           padding: 0;
-          letter-spacing: -0.5px;
+          letter-spacing: 0;
+          white-space: nowrap;
         }
         
         .logo-btn:hover {
@@ -2278,10 +2286,11 @@ export default function App() {
 
         .logo-text {
           font-weight: 600;
-          font-size: 18px;
+          font-size: 16px;
           color: #7cb97c;
-          font-family: 'Fraunces', Georgia, serif;
-          letter-spacing: -0.5px;
+          font-family: 'DM Sans', sans-serif;
+          letter-spacing: 0;
+          white-space: nowrap;
         }
 
         .landing-header {
@@ -2314,7 +2323,7 @@ export default function App() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: rgba(13, 31, 13, 0.9);
+          background: rgba(13, 31, 13, 0.95);
           backdrop-filter: blur(10px);
           border-bottom: 1px solid rgba(255, 255, 255, 0.1);
           z-index: 50;
@@ -2324,10 +2333,12 @@ export default function App() {
           display: flex;
           align-items: center;
           gap: 12px;
+          flex-shrink: 0;
         }
         
         .user-name {
           font-weight: 500;
+          font-size: 14px;
         }
         
         .user-badge {
@@ -2384,6 +2395,69 @@ export default function App() {
 
         .dashboard-spacer {
           height: 60px;
+        }
+
+        /* Mobile nav adjustments */
+        @media (max-width: 768px) {
+          .user-header {
+            padding: 10px 16px;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+
+          .user-info {
+            gap: 8px;
+          }
+
+          .logo-btn, .logo-text {
+            font-size: 15px;
+          }
+
+          .user-name {
+            display: none;
+          }
+
+          .user-actions {
+            gap: 8px;
+          }
+
+          .user-credits {
+            font-size: 12px;
+          }
+
+          .upgrade-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+          }
+
+          .logout-btn {
+            padding: 6px 10px;
+            font-size: 11px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .user-header {
+            padding: 8px 12px;
+          }
+
+          .logo-btn, .logo-text {
+            font-size: 14px;
+          }
+
+          .user-credits {
+            display: none;
+          }
+
+          .upgrade-btn {
+            padding: 6px 10px;
+            font-size: 11px;
+          }
+
+          .logout-btn {
+            padding: 6px 8px;
+            font-size: 10px;
+          }
         }
         
         @media (max-width: 640px) {
@@ -2695,8 +2769,10 @@ export default function App() {
               </div>
               
               <header className="tool-header">
-                <div className="logo">Golf Strategy</div>
-                <h1 className="tool-title">Improve Your Golf Game</h1>
+                <button className="logo-link" onClick={() => isAuthenticated ? setView('dashboard') : setView('landing')}>
+                  ⛳ GolfStrategy
+                </button>
+                <h1 className="tool-title">Improve Your Scores</h1>
               </header>
             </>
           )}
