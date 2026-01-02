@@ -262,7 +262,7 @@ export default function App() {
       </div>
       
       <div className="form-group">
-        <label>Current Handicap Index</label>
+        <label>Current Stroke Index</label>
         <input
           type="number"
           step="0.1"
@@ -479,7 +479,7 @@ export default function App() {
         <div className="results-header">
           <div className="results-title">
             <h1>{formData.name}'s Game Plan</h1>
-            <p>{formData.homeCourse} • {analysis.summary?.currentHandicap || formData.handicap} → {analysis.summary?.targetHandicap || '?'} Handicap</p>
+            <p>{formData.homeCourse} • {analysis.summary?.currentHandicap || formData.handicap} → {analysis.summary?.targetHandicap || '?'} Stroke Index</p>
           </div>
           <div className="potential-badge">
             <span className="potential-label">Potential Drop</span>
@@ -821,7 +821,7 @@ export default function App() {
         <div className="user-header">
           <div className="user-info">
             <button className="logo-btn" onClick={() => setView('dashboard')}>
-              🏌️ Fairway Strategy
+              🏌️ Golf Strategy
             </button>
           </div>
           <div className="user-actions">
@@ -837,6 +837,20 @@ export default function App() {
               </button>
             )}
             <button className="logout-btn" onClick={() => { logout(); setView('landing'); }}>Sign Out</button>
+          </div>
+        </div>
+      )}
+
+      {/* Sign In Header for non-authenticated users on landing */}
+      {!isAuthenticated && view === 'landing' && (
+        <div className="user-header landing-header">
+          <div className="user-info">
+            <span className="logo-text">🏌️ Golf Strategy</span>
+          </div>
+          <div className="user-actions">
+            <button className="signin-btn" onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}>
+              Sign In
+            </button>
           </div>
         </div>
       )}
@@ -886,7 +900,7 @@ export default function App() {
         }
         
         .tool-header {
-          padding: 40px 40px 20px;
+          padding: 80px 40px 20px;
           text-align: center;
           position: relative;
         }
@@ -1784,6 +1798,33 @@ export default function App() {
           color: #a8d4a8;
         }
 
+        .logo-text {
+          font-weight: 600;
+          font-size: 16px;
+          color: #7cb97c;
+        }
+
+        .landing-header {
+          background: transparent;
+          border-bottom: none;
+        }
+
+        .signin-btn {
+          padding: 10px 24px;
+          font-size: 14px;
+          font-weight: 600;
+          background: linear-gradient(135deg, #7cb97c, #5a9a5a);
+          color: #0d1f0d;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-family: inherit;
+        }
+
+        .signin-btn:hover {
+          opacity: 0.9;
+        }
+
         .user-header {
           position: fixed;
           top: 0;
@@ -1909,7 +1950,7 @@ export default function App() {
               </div>
               
               <header className="tool-header">
-                <div className="logo">Fairway Strategy</div>
+                <div className="logo">Golf Strategy</div>
                 <h1 className="tool-title">Build Your Game Plan</h1>
               </header>
             </>

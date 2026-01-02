@@ -231,7 +231,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
         <div className="progress-header">
           <div className="progress-title">
             <span className="progress-icon">🎯</span>
-            <h2>Handicap Index</h2>
+            <h2>Stroke Index</h2>
             {user?.ghin_number && (
               <span className="ghin-badge">GHIN #{user.ghin_number}</span>
             )}
@@ -252,7 +252,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
               setShowGHINModal(true);
             }}
           >
-            ✏️ Update Handicap
+            ✏️ Update Stroke Index
           </button>
         </div>
 
@@ -332,7 +332,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
                   <div className="analysis-info">
                     <div className="analysis-course">{latestAnalysis.home_course}</div>
                     <div className="analysis-date">{formatDate(latestAnalysis.created_at)}</div>
-                    <div className="analysis-handicap">{latestAnalysis.handicap} handicap</div>
+                    <div className="analysis-handicap">{latestAnalysis.handicap} stroke index</div>
                   </div>
                   <div className="analysis-action">
                     View Strategy →
@@ -402,7 +402,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
                       <div className="analysis-meta">
                         <span>{formatDate(analysis.created_at)}</span>
                         <span>•</span>
-                        <span>{analysis.handicap} handicap</span>
+                        <span>{analysis.handicap} stroke index</span>
                         <span>•</span>
                         <span className="miss-pattern">{analysis.miss_pattern}</span>
                       </div>
@@ -564,13 +564,13 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
         <div className="modal-overlay" onClick={() => setShowGHINModal(false)}>
           <div className="modal-content ghin-modal" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowGHINModal(false)}>×</button>
-            <h2>📊 Update Handicap</h2>
+            <h2>📊 Update Stroke Index</h2>
             <p className="modal-description">
-              Keep your handicap up to date to track your progress toward your goals.
+              Keep your stroke index up to date to track your progress toward your goals.
             </p>
             
             <div className="form-group">
-              <label>Current Handicap Index</label>
+              <label>Current Stroke Index</label>
               <input
                 type="number"
                 step="0.1"
@@ -613,11 +613,11 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
               }}
               disabled={ghinLoading || !ghinNumber.trim()}
             >
-              {ghinLoading ? 'Saving...' : 'Update Handicap'}
+              {ghinLoading ? 'Saving...' : 'Update Stroke Index'}
             </button>
             
             <p className="modal-hint">
-              💡 Tip: Check your official handicap on the <a href="https://www.ghin.com" target="_blank" rel="noopener noreferrer">GHIN website</a> or app.
+              💡 Tip: Check your official stroke index on the <a href="https://www.ghin.com" target="_blank" rel="noopener noreferrer">GHIN website</a> or app.
             </p>
           </div>
         </div>
@@ -627,7 +627,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
         .dashboard {
           max-width: 900px;
           margin: 0 auto;
-          padding: 40px 24px 80px;
+          padding: 80px 24px 80px;
         }
 
         .dashboard.loading {

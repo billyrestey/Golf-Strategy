@@ -332,5 +332,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🏌️ Fairway Strategy server running on port ${PORT}`);
+  console.log(`🏌️ Golf Strategy server running on port ${PORT}`);
 });
