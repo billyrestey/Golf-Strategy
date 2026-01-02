@@ -1661,8 +1661,8 @@ export default function App() {
         
         .results-title h1 {
           font-family: 'Fraunces', Georgia, serif;
-          font-size: 36px;
-          font-weight: 600;
+          font-size: 42px;
+          font-weight: 800;
           margin-bottom: 8px;
         }
         
