@@ -34,8 +34,8 @@ router.post('/create-checkout', authenticateToken, async (req, res) => {
       customer_email: user.email,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: isSubscription ? 'subscription' : 'payment',
-      success_url: `${process.env.FRONTEND_URL}/?payment=success`,
-      cancel_url: `${process.env.FRONTEND_URL}/?payment=cancelled`,
+      success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/pricing`,
       metadata: {
         userId: user.id.toString(),
         priceType

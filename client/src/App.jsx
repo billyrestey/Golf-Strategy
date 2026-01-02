@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import AuthModal from './components/AuthModal';
 import PricingModal from './components/PricingModal';
+import Dashboard from './components/Dashboard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -11,6 +12,7 @@ export default function App() {
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [currentAnalysisId, setCurrentAnalysisId] = useState(null);
+  const [view, setView] = useState('landing'); // 'landing', 'dashboard', 'analysis', 'results'
   
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -138,6 +140,7 @@ export default function App() {
           updateCredits(data.creditsRemaining);
         }
         setStep(5);
+        setView('results');
       } else {
         throw new Error(data.error || 'Analysis failed');
       }
@@ -163,7 +166,48 @@ export default function App() {
       uploadedCards: []
     });
     setError(null);
+    // Go to dashboard if logged in, otherwise landing
+    setView(isAuthenticated ? 'dashboard' : 'landing');
   };
+
+  // Start new analysis from dashboard
+  const startNewAnalysis = () => {
+    resetForm();
+    setView('analysis');
+    setStep(1);
+  };
+
+  // View a specific analysis from dashboard
+  const viewAnalysis = async (analysisId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/analyses/${analysisId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAnalysis(data.analysis.analysis_json);
+        setCurrentAnalysisId(analysisId);
+        setFormData(prev => ({
+          ...prev,
+          name: data.analysis.name,
+          handicap: data.analysis.handicap,
+          homeCourse: data.analysis.home_course,
+          missPattern: data.analysis.miss_pattern
+        }));
+        setView('results');
+        setStep(5);
+      }
+    } catch (error) {
+      console.error('Error loading analysis:', error);
+    }
+  };
+
+  // Redirect to dashboard after login if user already has analyses
+  useEffect(() => {
+    if (isAuthenticated && view === 'landing') {
+      setView('dashboard');
+    }
+  }, [isAuthenticated]);
 
   // PDF download function
   const downloadPDF = async (type = 'strategy') => {
@@ -773,23 +817,26 @@ export default function App() {
       />
       
       {/* User Header */}
-      {isAuthenticated && step < 5 && !isAnalyzing && (
+      {isAuthenticated && view !== 'results' && !isAnalyzing && (
         <div className="user-header">
           <div className="user-info">
+            <button className="logo-btn" onClick={() => setView('dashboard')}>
+              🏌️ Fairway Strategy
+            </button>
+          </div>
+          <div className="user-actions">
             <span className="user-name">{user?.name || user?.email}</span>
             {user?.subscriptionStatus === 'pro' ? (
               <span className="user-badge pro">Pro</span>
             ) : (
               <span className="user-credits">{user?.credits} credit{user?.credits !== 1 ? 's' : ''}</span>
             )}
-          </div>
-          <div className="user-actions">
             {user?.subscriptionStatus !== 'pro' && (
               <button className="upgrade-btn" onClick={() => setShowPricingModal(true)}>
                 Upgrade
               </button>
             )}
-            <button className="logout-btn" onClick={logout}>Sign Out</button>
+            <button className="logout-btn" onClick={() => { logout(); setView('landing'); }}>Sign Out</button>
           </div>
         </div>
       )}
@@ -1722,6 +1769,21 @@ export default function App() {
           justify-content: center;
         }
         
+        .logo-btn {
+          background: none;
+          border: none;
+          color: #7cb97c;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          padding: 0;
+        }
+        
+        .logo-btn:hover {
+          color: #a8d4a8;
+        }
+
         .user-header {
           position: fixed;
           top: 0;
@@ -1767,6 +1829,7 @@ export default function App() {
         
         .user-actions {
           display: flex;
+          align-items: center;
           gap: 12px;
         }
         
@@ -1797,6 +1860,10 @@ export default function App() {
           color: #fff;
           border-color: rgba(255, 255, 255, 0.4);
         }
+
+        .dashboard-spacer {
+          height: 60px;
+        }
         
         @media (max-width: 640px) {
           .cards-grid {
@@ -1824,28 +1891,43 @@ export default function App() {
         }
       `}</style>
       
-      {step < 5 && !isAnalyzing && (
+      {/* Dashboard View */}
+      {view === 'dashboard' && isAuthenticated && (
+        <Dashboard 
+          onNewAnalysis={startNewAnalysis}
+          onViewAnalysis={viewAnalysis}
+        />
+      )}
+
+      {/* Landing / Analysis Flow */}
+      {(view === 'landing' || view === 'analysis') && (
         <>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${(step / 4) * 100}%` }} />
-          </div>
+          {step < 5 && !isAnalyzing && (
+            <>
+              <div className="progress-bar">
+                <div className="progress-fill" style={{ width: `${(step / 4) * 100}%` }} />
+              </div>
+              
+              <header className="tool-header">
+                <div className="logo">Fairway Strategy</div>
+                <h1 className="tool-title">Build Your Game Plan</h1>
+              </header>
+            </>
+          )}
           
-          <header className="tool-header">
-            <div className="logo">Fairway Strategy</div>
-            <h1 className="tool-title">Build Your Game Plan</h1>
-          </header>
+          {isAnalyzing ? renderAnalyzing() : (
+            <>
+              {step === 1 && renderStep1()}
+              {step === 2 && renderStep2()}
+              {step === 3 && renderStep3()}
+              {step === 4 && renderStep4()}
+            </>
+          )}
         </>
       )}
-      
-      {isAnalyzing ? renderAnalyzing() : (
-        <>
-          {step === 1 && renderStep1()}
-          {step === 2 && renderStep2()}
-          {step === 3 && renderStep3()}
-          {step === 4 && renderStep4()}
-          {step === 5 && analysis && renderResults()}
-        </>
-      )}
+
+      {/* Results View */}
+      {(view === 'results' || step === 5) && analysis && renderResults()}
     </div>
   );
 }
