@@ -974,7 +974,7 @@ export default function App() {
         <div className="user-header">
           <div className="user-info">
             <button className="logo-btn" onClick={() => setView('dashboard')}>
-              🏌️ Golf Strategy
+            ⛳ GolfStrategy
             </button>
           </div>
           <div className="user-actions">
@@ -2260,8 +2260,8 @@ export default function App() {
               </div>
               
               <header className="tool-header">
-                <div className="logo">Golf Strategy</div>
-                <h1 className="tool-title">Build Your Game Plan</h1>
+                <div className="logo">GolfStrategy</div>
+                <h1 className="tool-title">Improve Your Game</h1>
               </header>
             </>
           )}
