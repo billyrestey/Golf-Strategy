@@ -321,7 +321,8 @@ app.get('/api/stats', authenticateToken, (req, res) => {
   }
 });
 
-// Public GHIN Lookup (no auth required - for initial signup flow)
+// Public GHIN Lookup (no auth required - for signup flow)
+// IMPORTANT: This must come BEFORE /api/ghin/:ghinNumber to avoid route conflict
 app.get('/api/ghin/lookup/:ghinNumber', async (req, res) => {
   try {
     const { ghinNumber } = req.params;
@@ -344,7 +345,7 @@ app.get('/api/ghin/lookup/:ghinNumber', async (req, res) => {
     }
   } catch (error) {
     console.error('Public GHIN lookup error:', error);
-    res.status(500).json({ error: 'Failed to lookup GHIN' });
+    res.status(500).json({ error: 'Failed to lookup GHIN', requiresManualEntry: true });
   }
 });
 
@@ -372,19 +373,19 @@ app.post('/api/ghin/link', authenticateToken, async (req, res) => {
     const result = await lookupGHIN(ghinNumber);
     
     if (!result.success) {
-      return res.status(404).json({ error: result.error || 'GHIN number not found' });
+      return res.status(404).json({ error: 'GHIN number not found' });
     }
     
     // Update user with GHIN number and current handicap
     updateUser(req.user.userId, {
       ghin_number: ghinNumber,
-      handicap: result.golfer.handicapIndex,
-      name: result.golfer.fullName
+      handicap: result.data.handicapIndex,
+      name: result.data.firstName + ' ' + result.data.lastName
     });
     
     res.json({
       success: true,
-      golfer: result.golfer
+      ghin: result.data
     });
   } catch (error) {
     console.error('GHIN link error:', error);
@@ -404,14 +405,14 @@ app.post('/api/ghin/refresh', authenticateToken, async (req, res) => {
     
     // Update user's handicap
     updateUser(req.user.userId, {
-      handicap: result.golfer.handicapIndex
+      handicap: result.data.handicapIndex
     });
     
     res.json({
       success: true,
-      handicapIndex: result.golfer.handicapIndex,
-      lowIndex: result.golfer.lowHandicapIndex,
-      lastRevision: result.golfer.revision_date
+      handicapIndex: result.data.handicapIndex,
+      trend: result.data.trend,
+      lastRevision: result.data.lastRevision
     });
   } catch (error) {
     console.error('GHIN refresh error:', error);

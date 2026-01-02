@@ -20,6 +20,7 @@ async function authenticate() {
   }
 
   try {
+    console.log('Authenticating with GHIN...');
     const response = await fetch('https://api2.ghin.com/api/v1/golfer_login.json', {
       method: 'POST',
       headers: {
@@ -36,7 +37,8 @@ async function authenticate() {
     });
 
     if (!response.ok) {
-      console.error('GHIN auth failed:', response.status);
+      const errorText = await response.text();
+      console.error('GHIN auth failed:', response.status, errorText);
       return null;
     }
 
@@ -50,6 +52,7 @@ async function authenticate() {
       return authToken;
     }
 
+    console.error('GHIN auth response missing token:', data);
     return null;
   } catch (error) {
     console.error('GHIN auth error:', error);
@@ -70,6 +73,8 @@ export async function lookupGHIN(ghinNumber) {
       };
     }
 
+    console.log('Looking up GHIN:', ghinNumber);
+    
     // Search for golfer by GHIN number
     const response = await fetch(
       `https://api2.ghin.com/api/v1/golfers.json?golfer_id=${ghinNumber}&from_ghin=true`,
@@ -84,7 +89,8 @@ export async function lookupGHIN(ghinNumber) {
     );
 
     if (!response.ok) {
-      console.error('GHIN lookup failed:', response.status);
+      const errorText = await response.text();
+      console.error('GHIN lookup failed:', response.status, errorText);
       return { 
         success: false, 
         requiresManualEntry: true,
@@ -93,6 +99,7 @@ export async function lookupGHIN(ghinNumber) {
     }
 
     const data = await response.json();
+    console.log('GHIN lookup response:', JSON.stringify(data, null, 2));
     
     if (data.golfers && data.golfers.length > 0) {
       const golfer = data.golfers[0];
