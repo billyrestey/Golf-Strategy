@@ -73,9 +73,14 @@ try {
   if (!hasTargetHandicap) {
     db.exec('ALTER TABLE users ADD COLUMN target_handicap REAL');
     console.log('Migration: Added target_handicap column to users table');
+  } else {
+    console.log('Migration: target_handicap column already exists');
   }
 } catch (err) {
-  console.error('Migration error:', err);
+  // Ignore "duplicate column" errors - column already exists
+  if (!err.message.includes('duplicate column')) {
+    console.error('Migration error:', err);
+  }
 }
 
 // User functions
