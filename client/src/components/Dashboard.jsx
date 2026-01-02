@@ -254,7 +254,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
               setShowGHINModal(true);
             }}
           >
-            ✏️ Update Stroke Index
+            ✏️ Update
           </button>
         </div>
 
