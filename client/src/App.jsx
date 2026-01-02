@@ -998,7 +998,7 @@ export default function App() {
       {!isAuthenticated && view === 'landing' && (
         <div className="user-header landing-header">
           <div className="user-info">
-            <span className="logo-text">🏌️ Golf Strategy</span>
+            <span className="logo-text">⛳ GolfStrategy</span>
           </div>
           <div className="user-actions">
             <button className="signin-btn" onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}>
@@ -2261,7 +2261,7 @@ export default function App() {
               
               <header className="tool-header">
                 <div className="logo">GolfStrategy</div>
-                <h1 className="tool-title">Improve Your Game</h1>
+                <h1 className="tool-title">Improve Your Game With AI</h1>
               </header>
             </>
           )}
