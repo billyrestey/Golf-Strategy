@@ -75,19 +75,26 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Main analysis endpoint
-app.post('/api/analyze', authenticateToken, upload.array('scorecards', 10), async (req, res) => {
+// Main analysis endpoint - supports both preview and authenticated modes
+app.post('/api/analyze', optionalAuth, upload.array('scorecards', 10), async (req, res) => {
   try {
-    const { name, handicap, homeCourse, missPattern, missDescription, strengths } = req.body;
-    const userId = req.user.userId;
+    const { name, handicap, homeCourse, missPattern, missDescription, strengths, preview } = req.body;
+    const isPreview = preview === 'true';
+    const userId = req.user?.userId;
 
-    // Check credits/subscription
-    const userCredits = getUserCredits(userId);
-    if (userCredits.subscription_status !== 'pro' && userCredits.credits <= 0) {
-      return res.status(403).json({ 
-        error: 'No credits remaining',
-        needsUpgrade: true 
-      });
+    // If not preview mode, require auth and check credits
+    if (!isPreview) {
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      
+      const userCredits = getUserCredits(userId);
+      if (userCredits.subscription_status !== 'pro' && userCredits.credits <= 0) {
+        return res.status(403).json({ 
+          error: 'No credits remaining',
+          needsUpgrade: true 
+        });
+      }
     }
 
     // Parse strengths if it's a string
@@ -119,7 +126,16 @@ app.post('/api/analyze', authenticateToken, upload.array('scorecards', 10), asyn
       scorecardImages
     });
 
-    // Save analysis to database
+    // Preview mode - just return analysis, don't save or charge
+    if (isPreview) {
+      return res.json({ 
+        success: true, 
+        analysis,
+        preview: true
+      });
+    }
+
+    // Full mode - save and charge credits
     const analysisId = saveAnalysis(userId, {
       name,
       handicap: parseFloat(handicap),
@@ -128,7 +144,7 @@ app.post('/api/analyze', authenticateToken, upload.array('scorecards', 10), asyn
       analysis
     });
 
-    // Decrement credits if not pro
+    const userCredits = getUserCredits(userId);
     if (userCredits.subscription_status !== 'pro') {
       decrementCredits(userId);
     }
@@ -145,6 +161,49 @@ app.post('/api/analyze', authenticateToken, upload.array('scorecards', 10), asyn
   } catch (error) {
     console.error('Analysis error:', error);
     res.status(500).json({ error: error.message || 'Analysis failed' });
+  }
+});
+
+// Save analysis after signup (for preview-to-full conversion)
+app.post('/api/analyses/save', authenticateToken, async (req, res) => {
+  try {
+    const { name, handicap, homeCourse, missPattern, analysis } = req.body;
+    const userId = req.user.userId;
+
+    // Check credits
+    const userCredits = getUserCredits(userId);
+    if (userCredits.subscription_status !== 'pro' && userCredits.credits <= 0) {
+      return res.status(403).json({ 
+        error: 'No credits remaining',
+        needsUpgrade: true 
+      });
+    }
+
+    // Save analysis
+    const analysisId = saveAnalysis(userId, {
+      name,
+      handicap: parseFloat(handicap),
+      homeCourse,
+      missPattern,
+      analysis
+    });
+
+    // Decrement credits if not pro
+    if (userCredits.subscription_status !== 'pro') {
+      decrementCredits(userId);
+    }
+
+    res.json({
+      success: true,
+      analysisId,
+      creditsRemaining: userCredits.subscription_status === 'pro'
+        ? 'unlimited'
+        : userCredits.credits - 1
+    });
+
+  } catch (error) {
+    console.error('Save analysis error:', error);
+    res.status(500).json({ error: 'Failed to save analysis' });
   }
 });
 

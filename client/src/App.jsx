@@ -74,23 +74,16 @@ export default function App() {
     }));
   };
 
+  const [previewMode, setPreviewMode] = useState(false);
+  const [pendingAnalysis, setPendingAnalysis] = useState(null);
+
   const analyzeGame = async () => {
-    // Check if user is authenticated
-    if (!isAuthenticated) {
-      setAuthMode('register');
-      setShowAuthModal(true);
-      return;
-    }
-
-    // Check if user can analyze
-    if (!canAnalyze) {
-      setShowPricingModal(true);
-      return;
-    }
-
     setIsAnalyzing(true);
     setError(null);
     setAnalyzeStep(0);
+    
+    // Determine if this is a preview (not logged in) or full analysis
+    const isPreview = !isAuthenticated;
     
     try {
       // Create FormData for file upload
@@ -101,6 +94,7 @@ export default function App() {
       submitData.append('missPattern', formData.missPattern);
       submitData.append('missDescription', formData.missDescription);
       submitData.append('strengths', JSON.stringify(formData.strengths));
+      submitData.append('preview', isPreview.toString());
       
       // Append scorecard files
       formData.uploadedCards.forEach((card, index) => {
@@ -112,11 +106,14 @@ export default function App() {
         setAnalyzeStep(prev => Math.min(prev + 1, 3));
       }, 800);
 
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${API_URL}/api/analyze`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers,
         body: submitData
       });
 
@@ -135,12 +132,26 @@ export default function App() {
       
       if (data.success) {
         setAnalysis(data.analysis);
-        setCurrentAnalysisId(data.analysisId);
-        if (data.creditsRemaining !== 'unlimited') {
-          updateCredits(data.creditsRemaining);
+        
+        if (isPreview) {
+          // Store for later and show teaser
+          setPreviewMode(true);
+          setPendingAnalysis({
+            analysis: data.analysis,
+            formData: { ...formData }
+          });
+          setStep(5);
+          setView('results');
+        } else {
+          // Full analysis - save and show
+          setCurrentAnalysisId(data.analysisId);
+          if (data.creditsRemaining !== 'unlimited') {
+            updateCredits(data.creditsRemaining);
+          }
+          setPreviewMode(false);
+          setStep(5);
+          setView('results');
         }
-        setStep(5);
-        setView('results');
       } else {
         throw new Error(data.error || 'Analysis failed');
       }
@@ -156,6 +167,8 @@ export default function App() {
     setStep(1);
     setAnalysis(null);
     setCurrentAnalysisId(null);
+    setPreviewMode(false);
+    setPendingAnalysis(null);
     setFormData({
       name: '',
       handicap: '',
@@ -169,6 +182,52 @@ export default function App() {
     // Go to dashboard if logged in, otherwise landing
     setView(isAuthenticated ? 'dashboard' : 'landing');
   };
+
+  // Unlock full analysis after signup/login
+  const unlockAnalysis = async () => {
+    if (!pendingAnalysis || !isAuthenticated) return;
+    
+    try {
+      // Save the analysis to user's account
+      const response = await fetch(`${API_URL}/api/analyses/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: pendingAnalysis.formData.name,
+          handicap: pendingAnalysis.formData.handicap,
+          homeCourse: pendingAnalysis.formData.homeCourse,
+          missPattern: pendingAnalysis.formData.missPattern,
+          analysis: pendingAnalysis.analysis
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentAnalysisId(data.analysisId);
+        if (data.creditsRemaining !== 'unlimited') {
+          updateCredits(data.creditsRemaining);
+        }
+      }
+      
+      // Reveal full analysis
+      setPreviewMode(false);
+      setPendingAnalysis(null);
+    } catch (error) {
+      console.error('Error saving analysis:', error);
+      // Still show full analysis even if save fails
+      setPreviewMode(false);
+    }
+  };
+
+  // When user logs in while in preview mode, unlock the analysis
+  useEffect(() => {
+    if (isAuthenticated && previewMode && pendingAnalysis) {
+      unlockAnalysis();
+    }
+  }, [isAuthenticated, previewMode]);
 
   // Start new analysis from dashboard
   const startNewAnalysis = () => {
@@ -474,6 +533,100 @@ export default function App() {
   const renderResults = () => {
     if (!analysis) return null;
 
+    // Preview mode - show teaser with blur
+    if (previewMode) {
+      return (
+        <div className="results-container preview-mode">
+          {/* Teaser Header - Always Visible */}
+          <div className="teaser-header">
+            <div className="teaser-badge">
+              <span className="teaser-icon">🎯</span>
+              <span className="teaser-text">Your Analysis is Ready</span>
+            </div>
+            <h1 className="teaser-headline">
+              Improve Your Game by <span className="highlight">{analysis.summary?.potentialStrokeDrop || '3-5'} Strokes</span>
+            </h1>
+            <p className="teaser-subhead">
+              {formData.name}, we've analyzed your scorecards and created a personalized strategy for {formData.homeCourse}.
+            </p>
+          </div>
+
+          {/* Key Insight - Visible */}
+          {analysis.summary?.keyInsight && (
+            <div className="key-insight teaser-insight">
+              <span className="insight-label">Your #1 Opportunity</span>
+              <p>{analysis.summary.keyInsight}</p>
+            </div>
+          )}
+
+          {/* Blurred Preview */}
+          <div className="blurred-preview">
+            <div className="blur-overlay">
+              <div className="unlock-prompt">
+                <h2>Unlock Your Full Strategy</h2>
+                <p>Get your complete game plan including:</p>
+                <ul className="unlock-features">
+                  <li>✓ Hole-by-hole course strategy</li>
+                  <li>✓ Personalized practice plan</li>
+                  <li>✓ Mental game techniques</li>
+                  <li>✓ Target stats to track</li>
+                  <li>✓ 30-day improvement roadmap</li>
+                </ul>
+                <button 
+                  className="unlock-btn"
+                  onClick={() => { setAuthMode('register'); setShowAuthModal(true); }}
+                >
+                  Sign Up Free to Unlock
+                </button>
+                <p className="unlock-note">
+                  Already have an account? <button className="link-btn" onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}>Sign in</button>
+                </p>
+              </div>
+            </div>
+            
+            {/* Blurred Content Preview */}
+            <div className="blurred-content">
+              <section className="results-section strategy-section">
+                <div className="section-header">
+                  <span className="section-icon">🗺️</span>
+                  <h2>Course Strategy</h2>
+                </div>
+                <div className="light-system">
+                  <div className="light-group red">
+                    <div className="light-header">
+                      <span className="light-indicator">🔴</span>
+                      <strong>Red Light — Play Safe</strong>
+                    </div>
+                  </div>
+                  <div className="light-group green">
+                    <div className="light-header">
+                      <span className="light-indicator">🟢</span>
+                      <strong>Green Light — Attack</strong>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              
+              <section className="results-section">
+                <div className="section-header">
+                  <span className="section-icon">🏋️</span>
+                  <h2>Practice Plan</h2>
+                </div>
+              </section>
+
+              <section className="results-section">
+                <div className="section-header">
+                  <span className="section-icon">📅</span>
+                  <h2>30-Day Plan</h2>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Full results view
     return (
       <div className="results-container">
         <div className="results-header">
@@ -1311,6 +1464,163 @@ export default function App() {
         .results-container {
           padding: 40px 24px 80px;
           position: relative;
+        }
+
+        /* Preview/Teaser Mode Styles */
+        .preview-mode {
+          padding-top: 80px;
+        }
+
+        .teaser-header {
+          max-width: 700px;
+          margin: 0 auto 40px;
+          text-align: center;
+        }
+
+        .teaser-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(124, 185, 124, 0.15);
+          border: 1px solid rgba(124, 185, 124, 0.3);
+          padding: 8px 16px;
+          border-radius: 20px;
+          margin-bottom: 24px;
+        }
+
+        .teaser-icon {
+          font-size: 18px;
+        }
+
+        .teaser-text {
+          font-size: 14px;
+          font-weight: 500;
+          color: #7cb97c;
+        }
+
+        .teaser-headline {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 42px;
+          font-weight: 600;
+          line-height: 1.2;
+          margin-bottom: 16px;
+        }
+
+        .teaser-headline .highlight {
+          color: #7cb97c;
+        }
+
+        .teaser-subhead {
+          font-size: 18px;
+          color: rgba(240, 244, 232, 0.7);
+          line-height: 1.5;
+        }
+
+        .teaser-insight {
+          max-width: 700px;
+          margin: 0 auto 40px;
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.15), rgba(124, 185, 124, 0.05));
+          border: 1px solid rgba(124, 185, 124, 0.3);
+          padding: 24px 28px;
+        }
+
+        .blurred-preview {
+          position: relative;
+          max-width: 900px;
+          margin: 0 auto;
+        }
+
+        .blur-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(180deg, rgba(13, 31, 13, 0.5) 0%, rgba(13, 31, 13, 0.98) 60%);
+          z-index: 10;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 16px;
+        }
+
+        .unlock-prompt {
+          text-align: center;
+          padding: 40px;
+        }
+
+        .unlock-prompt h2 {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 28px;
+          margin-bottom: 12px;
+        }
+
+        .unlock-prompt > p {
+          color: rgba(240, 244, 232, 0.7);
+          margin-bottom: 20px;
+        }
+
+        .unlock-features {
+          list-style: none;
+          text-align: left;
+          display: inline-block;
+          margin-bottom: 28px;
+        }
+
+        .unlock-features li {
+          padding: 8px 0;
+          font-size: 15px;
+          color: rgba(240, 244, 232, 0.9);
+        }
+
+        .unlock-btn {
+          display: block;
+          width: 100%;
+          padding: 16px 32px;
+          font-size: 17px;
+          font-weight: 600;
+          background: linear-gradient(135deg, #7cb97c, #5a9a5a);
+          color: #0d1f0d;
+          border: none;
+          border-radius: 12px;
+          cursor: pointer;
+          font-family: inherit;
+          margin-bottom: 16px;
+        }
+
+        .unlock-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(124, 185, 124, 0.3);
+        }
+
+        .unlock-note {
+          font-size: 14px;
+          color: rgba(240, 244, 232, 0.5);
+        }
+
+        .link-btn {
+          background: none;
+          border: none;
+          color: #7cb97c;
+          font-size: 14px;
+          cursor: pointer;
+          text-decoration: underline;
+          font-family: inherit;
+        }
+
+        .blurred-content {
+          filter: blur(8px);
+          opacity: 0.5;
+          pointer-events: none;
+          min-height: 400px;
+        }
+
+        .blurred-content .results-section {
+          margin-bottom: 24px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 16px;
+          padding: 24px;
         }
         
         .results-header {
