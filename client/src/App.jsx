@@ -1057,7 +1057,7 @@ export default function App() {
           <div className="modal-content course-modal" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowCourseModal(false)}>×</button>
             
-            <h2>🗺️ New Course Strategy</h2>
+            <h2>+Course Strategy</h2>
             <p className="modal-subtitle">
               Get a game plan for a course you're about to play
             </p>
