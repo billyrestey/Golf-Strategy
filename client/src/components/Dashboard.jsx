@@ -232,7 +232,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         </div>
         <div className="dash-header-buttons">
           <button className="new-course-btn" onClick={onNewCourseStrategy}>
-            🗺️ New Course Strategy
+            + New Course Strategy
           </button>
           <button className="new-analysis-btn" onClick={onNewAnalysis}>
             + New Analysis
