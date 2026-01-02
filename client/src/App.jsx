@@ -2969,7 +2969,7 @@ export default function App() {
               
               <header className="tool-header">
                 <div className="logo">GOLF STRATEGY</div>
-                <h1 className="tool-title">IMPROVE YOUR GOLF</h1>
+                <h1 className="tool-title">Up Your Game</h1>
               </header>
             </>
           )}
