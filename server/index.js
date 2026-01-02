@@ -10,6 +10,7 @@ import authRoutes, { authenticateToken, optionalAuth } from './routes/auth.js';
 import paymentRoutes from './routes/payments.js';
 import { analyzeGolfGame } from './services/claude.js';
 import { generateStrategyPDF, generatePracticePlanPDF } from './services/pdf.js';
+import { lookupGHIN, getGHINScores } from './services/ghin.js';
 import { 
   saveAnalysis, 
   getAnalysesByUser, 
@@ -18,7 +19,8 @@ import {
   decrementCredits,
   saveRound,
   getRoundsByUser,
-  getUserStats
+  getUserStats,
+  updateUser
 } from './db/database.js';
 
 dotenv.config();
@@ -237,6 +239,89 @@ app.get('/api/stats', authenticateToken, (req, res) => {
   } catch (error) {
     console.error('Get stats error:', error);
     res.status(500).json({ error: 'Failed to get stats' });
+  }
+});
+
+// GHIN Handicap Lookup
+app.get('/api/ghin/:ghinNumber', authenticateToken, async (req, res) => {
+  try {
+    const { ghinNumber } = req.params;
+    const result = await lookupGHIN(ghinNumber);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    console.error('GHIN lookup error:', error);
+    res.status(500).json({ error: 'Failed to lookup GHIN' });
+  }
+});
+
+// Link GHIN to user account and update handicap
+app.post('/api/ghin/link', authenticateToken, async (req, res) => {
+  try {
+    const { ghinNumber } = req.body;
+    const result = await lookupGHIN(ghinNumber);
+    
+    if (!result.success) {
+      return res.status(404).json({ error: 'GHIN number not found' });
+    }
+    
+    // Update user with GHIN number and current handicap
+    updateUser(req.user.userId, {
+      ghin_number: ghinNumber,
+      handicap: result.data.handicapIndex,
+      name: result.data.firstName + ' ' + result.data.lastName
+    });
+    
+    res.json({
+      success: true,
+      ghin: result.data
+    });
+  } catch (error) {
+    console.error('GHIN link error:', error);
+    res.status(500).json({ error: 'Failed to link GHIN' });
+  }
+});
+
+// Refresh handicap from GHIN
+app.post('/api/ghin/refresh', authenticateToken, async (req, res) => {
+  try {
+    const { ghinNumber } = req.body;
+    const result = await lookupGHIN(ghinNumber);
+    
+    if (!result.success) {
+      return res.status(404).json({ error: 'Could not refresh handicap' });
+    }
+    
+    // Update user's handicap
+    updateUser(req.user.userId, {
+      handicap: result.data.handicapIndex
+    });
+    
+    res.json({
+      success: true,
+      handicapIndex: result.data.handicapIndex,
+      trend: result.data.trend,
+      lastRevision: result.data.lastRevision
+    });
+  } catch (error) {
+    console.error('GHIN refresh error:', error);
+    res.status(500).json({ error: 'Failed to refresh handicap' });
+  }
+});
+
+// Get GHIN score history
+app.get('/api/ghin/:ghinNumber/scores', authenticateToken, async (req, res) => {
+  try {
+    const { ghinNumber } = req.params;
+    const result = await getGHINScores(ghinNumber);
+    res.json(result);
+  } catch (error) {
+    console.error('GHIN scores error:', error);
+    res.status(500).json({ error: 'Failed to get GHIN scores' });
   }
 });
 

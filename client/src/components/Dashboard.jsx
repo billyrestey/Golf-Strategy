@@ -4,13 +4,19 @@ import { useAuth } from '../context/AuthContext';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
-  const { user, token } = useAuth();
+  const { user, token, refreshUser } = useAuth();
   const [analyses, setAnalyses] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [showRoundModal, setShowRoundModal] = useState(false);
+  const [showGHINModal, setShowGHINModal] = useState(false);
+  const [ghinNumber, setGhinNumber] = useState('');
+  const [ghinLoading, setGhinLoading] = useState(false);
+  const [ghinError, setGhinError] = useState('');
+  const [ghinData, setGhinData] = useState(null);
+  const [refreshingHandicap, setRefreshingHandicap] = useState(false);
   const [roundForm, setRoundForm] = useState({
     date: new Date().toISOString().split('T')[0],
     course: '',
@@ -98,6 +104,91 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
     }
   };
 
+  // GHIN Functions
+  const lookupGHIN = async () => {
+    if (!ghinNumber.trim()) return;
+    
+    setGhinLoading(true);
+    setGhinError('');
+    
+    try {
+      const response = await fetch(`${API_URL}/api/ghin/${ghinNumber}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setGhinData(data.data);
+      } else {
+        setGhinError(data.error || 'GHIN number not found');
+      }
+    } catch (error) {
+      setGhinError('Failed to lookup GHIN');
+    } finally {
+      setGhinLoading(false);
+    }
+  };
+
+  const linkGHIN = async () => {
+    setGhinLoading(true);
+    
+    try {
+      const response = await fetch(`${API_URL}/api/ghin/link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ghinNumber })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setShowGHINModal(false);
+        setGhinNumber('');
+        setGhinData(null);
+        // Refresh user data to get updated handicap
+        if (refreshUser) refreshUser();
+      } else {
+        setGhinError(data.error || 'Failed to link GHIN');
+      }
+    } catch (error) {
+      setGhinError('Failed to link GHIN');
+    } finally {
+      setGhinLoading(false);
+    }
+  };
+
+  const refreshHandicap = async () => {
+    if (!user?.ghin_number) return;
+    
+    setRefreshingHandicap(true);
+    
+    try {
+      const response = await fetch(`${API_URL}/api/ghin/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ghinNumber: user.ghin_number })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh user data
+        if (refreshUser) refreshUser();
+      }
+    } catch (error) {
+      console.error('Failed to refresh handicap:', error);
+    } finally {
+      setRefreshingHandicap(false);
+    }
+  };
+
   // Calculate progress toward goal
   const latestAnalysis = analyses[0];
   const currentHandicap = user?.handicap || latestAnalysis?.handicap || 15;
@@ -140,7 +231,10 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
         <div className="progress-header">
           <div className="progress-title">
             <span className="progress-icon">🎯</span>
-            <h2>Handicap Goal</h2>
+            <h2>Handicap Index</h2>
+            {user?.ghin_number && (
+              <span className="ghin-badge">GHIN #{user.ghin_number}</span>
+            )}
           </div>
           <div className="handicap-display">
             <span className="current-hcp">{currentHandicap.toFixed(1)}</span>
@@ -148,6 +242,27 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
             <span className="target-hcp">{targetHandicap.toFixed(1)}</span>
           </div>
         </div>
+        
+        {/* GHIN Link/Refresh */}
+        <div className="ghin-actions">
+          {user?.ghin_number ? (
+            <button 
+              className="refresh-handicap-btn"
+              onClick={refreshHandicap}
+              disabled={refreshingHandicap}
+            >
+              {refreshingHandicap ? '↻ Refreshing...' : '↻ Refresh from GHIN'}
+            </button>
+          ) : (
+            <button 
+              className="link-ghin-btn"
+              onClick={() => setShowGHINModal(true)}
+            >
+              🔗 Link GHIN Account
+            </button>
+          )}
+        </div>
+
         <div className="progress-bar-container">
           <div className="progress-bar-bg">
             <div 
@@ -447,6 +562,74 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
 
               <button type="submit" className="submit-btn">Save Round</button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* GHIN Link Modal */}
+      {showGHINModal && (
+        <div className="modal-overlay" onClick={() => setShowGHINModal(false)}>
+          <div className="modal-content ghin-modal" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowGHINModal(false)}>×</button>
+            <h2>🔗 Link GHIN Account</h2>
+            <p className="modal-description">
+              Connect your GHIN number to automatically track your official handicap index.
+            </p>
+            
+            {!ghinData ? (
+              <>
+                <div className="form-group">
+                  <label>GHIN Number</label>
+                  <input
+                    type="text"
+                    value={ghinNumber}
+                    onChange={e => setGhinNumber(e.target.value)}
+                    placeholder="1234567"
+                    maxLength={10}
+                  />
+                </div>
+                
+                {ghinError && (
+                  <div className="ghin-error">{ghinError}</div>
+                )}
+                
+                <button 
+                  className="submit-btn"
+                  onClick={lookupGHIN}
+                  disabled={ghinLoading || !ghinNumber.trim()}
+                >
+                  {ghinLoading ? 'Looking up...' : 'Look Up'}
+                </button>
+              </>
+            ) : (
+              <div className="ghin-result">
+                <div className="ghin-profile">
+                  <div className="ghin-name">{ghinData.firstName} {ghinData.lastName}</div>
+                  <div className="ghin-club">{ghinData.club}</div>
+                  <div className="ghin-handicap-large">
+                    <span className="handicap-value">{ghinData.handicapIndex}</span>
+                    <span className="handicap-label">Handicap Index</span>
+                    {ghinData.trend && (
+                      <span className={`trend-indicator ${ghinData.trend}`}>
+                        {ghinData.trend === 'down' ? '↓' : ghinData.trend === 'up' ? '↑' : '–'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="ghin-actions-modal">
+                  <button className="submit-btn" onClick={linkGHIN} disabled={ghinLoading}>
+                    {ghinLoading ? 'Linking...' : 'Link This Account'}
+                  </button>
+                  <button 
+                    className="cancel-btn"
+                    onClick={() => { setGhinData(null); setGhinNumber(''); }}
+                  >
+                    Try Different Number
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -989,6 +1172,142 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
           cursor: pointer;
           font-family: inherit;
           margin-top: 8px;
+        }
+
+        .submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        /* GHIN Styles */
+        .ghin-badge {
+          font-size: 11px;
+          padding: 4px 10px;
+          background: rgba(124, 185, 124, 0.15);
+          color: #7cb97c;
+          border-radius: 12px;
+          margin-left: 8px;
+        }
+
+        .ghin-actions {
+          margin-bottom: 16px;
+        }
+
+        .link-ghin-btn,
+        .refresh-handicap-btn {
+          padding: 8px 16px;
+          font-size: 13px;
+          background: rgba(124, 185, 124, 0.1);
+          color: #7cb97c;
+          border: 1px solid rgba(124, 185, 124, 0.3);
+          border-radius: 8px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s;
+        }
+
+        .link-ghin-btn:hover,
+        .refresh-handicap-btn:hover {
+          background: rgba(124, 185, 124, 0.2);
+        }
+
+        .refresh-handicap-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .modal-description {
+          color: rgba(240, 244, 232, 0.6);
+          margin-bottom: 24px;
+          line-height: 1.5;
+        }
+
+        .ghin-error {
+          background: rgba(220, 53, 69, 0.15);
+          color: #ff6b6b;
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin-bottom: 16px;
+          font-size: 14px;
+        }
+
+        .ghin-result {
+          text-align: center;
+        }
+
+        .ghin-profile {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 20px;
+        }
+
+        .ghin-name {
+          font-size: 20px;
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+
+        .ghin-club {
+          color: rgba(240, 244, 232, 0.6);
+          font-size: 14px;
+          margin-bottom: 16px;
+        }
+
+        .ghin-handicap-large {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .ghin-handicap-large .handicap-value {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 48px;
+          font-weight: 700;
+          color: #7cb97c;
+        }
+
+        .ghin-handicap-large .handicap-label {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: rgba(240, 244, 232, 0.5);
+        }
+
+        .trend-indicator {
+          font-size: 20px;
+          margin-top: 8px;
+        }
+
+        .trend-indicator.down {
+          color: #7cb97c;
+        }
+
+        .trend-indicator.up {
+          color: #ff6b6b;
+        }
+
+        .ghin-actions-modal {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .cancel-btn {
+          padding: 12px;
+          background: transparent;
+          color: rgba(240, 244, 232, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          cursor: pointer;
+          font-family: inherit;
+          font-size: 14px;
+        }
+
+        .cancel-btn:hover {
+          color: #fff;
+          border-color: rgba(255, 255, 255, 0.4);
         }
 
         @media (max-width: 640px) {

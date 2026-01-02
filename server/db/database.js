@@ -1,11 +1,18 @@
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const db = new Database(join(__dirname, '../data/fairway.db'));
+// Ensure data directory exists BEFORE creating database
+const dataDir = join(__dirname, '../data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const db = new Database(join(dataDir, 'fairway.db'));
 
 // Initialize database tables
 db.exec(`
@@ -16,6 +23,7 @@ db.exec(`
     name TEXT,
     handicap REAL,
     home_course TEXT,
+    ghin_number TEXT,
     subscription_status TEXT DEFAULT 'free',
     subscription_id TEXT,
     credits INTEGER DEFAULT 1,
