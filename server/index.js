@@ -322,8 +322,7 @@ app.get('/api/stats', authenticateToken, (req, res) => {
 });
 
 // Public GHIN Lookup (no auth required - for signup flow)
-// IMPORTANT: This must come BEFORE /api/ghin/:ghinNumber to avoid route conflict
-app.get('/api/ghin/lookup/:ghinNumber', async (req, res) => {
+app.get('/api/public/ghin-lookup/:ghinNumber', async (req, res) => {
   try {
     const { ghinNumber } = req.params;
     const result = await lookupGHIN(ghinNumber);

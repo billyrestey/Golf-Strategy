@@ -208,7 +208,7 @@ export default function App() {
     setGhinLookup({ loading: true, error: null, golfer: null });
     
     try {
-      const response = await fetch(`${API_URL}/api/ghin/lookup/${ghinNumber}`);
+      const response = await fetch(`${API_URL}/api/public/ghin-lookup/${ghinNumber}`);
       const data = await response.json();
       
       if (data.success && data.golfer) {
