@@ -942,13 +942,13 @@ export default function App() {
         
         <div className="results-footer">
           <button className="restart-btn" onClick={resetForm}>
-            Start Over
+            Back to Dashboard
           </button>
           <button className="print-btn" onClick={() => downloadPDF('strategy')}>
-            📄 Strategy Card
+            📄 View Strategy
           </button>
           <button className="print-btn secondary" onClick={() => downloadPDF('practice')}>
-            📋 Practice Plan
+            📋 View Drills
           </button>
         </div>
       </div>
