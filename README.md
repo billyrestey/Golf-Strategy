@@ -1,4 +1,4 @@
-# Fairway Strategy v2
+# Golf Strategy
 
 AI-powered golf strategy tool with user accounts, payments, and PDF exports.
 
