@@ -45,8 +45,7 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://golf-strategy.vercel.app',
   'https://www.golfstrategy.app',
-  'https://golfstrategy.app',
-  'https://golf-strategy-production.up.railway.app'
+  'https://golfstrategy.app'
 ];
 
 app.use(cors({
@@ -94,11 +93,6 @@ app.use('/api/payments', paymentRoutes);
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Simple test endpoint
-app.get('/api/test-ghin', (req, res) => {
-  res.json({ message: 'GHIN routes are working', timestamp: new Date().toISOString() });
 });
 
 // Main analysis endpoint - supports both preview and authenticated modes
@@ -327,38 +321,7 @@ app.get('/api/stats', authenticateToken, (req, res) => {
   }
 });
 
-// Public GHIN Lookup (no auth required - for signup flow)
-app.get('/api/public/ghin-lookup/:ghinNumber', async (req, res) => {
-  console.log('=== GHIN LOOKUP REQUEST ===');
-  console.log('Params:', req.params);
-  try {
-    const { ghinNumber } = req.params;
-    console.log('Looking up GHIN:', ghinNumber);
-    const result = await lookupGHIN(ghinNumber);
-    console.log('Lookup result:', result.success ? 'SUCCESS' : 'FAILED');
-    
-    if (result.success) {
-      // Return limited info for public lookup
-      res.json({
-        success: true,
-        golfer: {
-          firstName: result.golfer.firstName,
-          lastName: result.golfer.lastName,
-          handicapIndex: result.golfer.handicapIndex,
-          club: result.golfer.club,
-          state: result.golfer.state
-        }
-      });
-    } else {
-      res.status(404).json(result);
-    }
-  } catch (error) {
-    console.error('Public GHIN lookup error:', error);
-    res.status(500).json({ error: 'Failed to lookup GHIN', requiresManualEntry: true });
-  }
-});
-
-// GHIN Handicap Lookup (authenticated)
+// GHIN Handicap Lookup
 app.get('/api/ghin/:ghinNumber', authenticateToken, async (req, res) => {
   try {
     const { ghinNumber } = req.params;
