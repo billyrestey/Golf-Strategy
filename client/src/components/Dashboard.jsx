@@ -254,7 +254,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
               setShowGHINModal(true);
             }}
           >
-            ✏️ Update
+            ✏️ Update Stroke Index
           </button>
         </div>
 
@@ -566,7 +566,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
         <div className="modal-overlay" onClick={() => setShowGHINModal(false)}>
           <div className="modal-content ghin-modal" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowGHINModal(false)}>×</button>
-            <h2>📊 Update</h2>
+            <h2>📊 Update Stroke Index</h2>
             <p className="modal-description">
               Keep your stroke index up to date to track your progress toward your goals.
             </p>

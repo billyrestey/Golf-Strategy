@@ -66,6 +66,18 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_rounds_user ON rounds(user_id);
 `);
 
+// Migration: Add target_handicap column if it doesn't exist
+try {
+  const tableInfo = db.prepare("PRAGMA table_info(users)").all();
+  const hasTargetHandicap = tableInfo.some(col => col.name === 'target_handicap');
+  if (!hasTargetHandicap) {
+    db.exec('ALTER TABLE users ADD COLUMN target_handicap REAL');
+    console.log('Migration: Added target_handicap column to users table');
+  }
+} catch (err) {
+  console.error('Migration error:', err);
+}
+
 // User functions
 export const createUser = (email, passwordHash, name = null) => {
   const stmt = db.prepare(`
