@@ -3,7 +3,7 @@ import { useAuth } from './context/AuthContext';
 import AuthModal from './components/AuthModal';
 import PricingModal from './components/PricingModal';
 
-const API_URL = import.meta.env.PROD ? '' : 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function App() {
   const { user, token, isAuthenticated, loading: authLoading, logout, canAnalyze, updateCredits } = useAuth();
