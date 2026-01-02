@@ -329,6 +329,22 @@ export default function App() {
     }
   };
 
+  // View a specific course strategy from dashboard
+  const viewCourseStrategy = async (strategyId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/course-strategies/${strategyId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCourseStrategyData(data.strategy.strategy_json);
+        setView('courseStrategy');
+      }
+    } catch (error) {
+      console.error('Error loading course strategy:', error);
+    }
+  };
+
   // Redirect to dashboard after login if user already has analyses
   useEffect(() => {
     if (isAuthenticated && view === 'landing') {
@@ -2264,12 +2280,12 @@ export default function App() {
           background: none;
           border: none;
           color: #7cb97c;
-          font-size: 18px;
+          font-size: 16px;
           font-weight: 600;
           cursor: pointer;
-          font-family: 'Fraunces', Georgia, serif;
+          font-family: 'DM Sans', sans-serif;
           padding: 0;
-          letter-spacing: -0.5px;
+          white-space: nowrap;
         }
         
         .logo-btn:hover {
@@ -2278,10 +2294,26 @@ export default function App() {
 
         .logo-text {
           font-weight: 600;
-          font-size: 18px;
+          font-size: 16px;
           color: #7cb97c;
-          font-family: 'Fraunces', Georgia, serif;
-          letter-spacing: -0.5px;
+          font-family: 'DM Sans', sans-serif;
+          white-space: nowrap;
+        }
+
+        .logo-link {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 15px;
+          font-weight: 600;
+          color: #7cb97c;
+          margin-bottom: 12px;
+          background: none;
+          border: none;
+          cursor: pointer;
+          display: block;
+        }
+
+        .logo-link:hover {
+          color: #a8d4a8;
         }
 
         .landing-header {
@@ -2385,6 +2417,67 @@ export default function App() {
         .dashboard-spacer {
           height: 60px;
         }
+
+        /* Mobile nav adjustments */
+        @media (max-width: 768px) {
+          .user-header {
+            padding: 10px 16px;
+          }
+
+          .user-info {
+            gap: 8px;
+          }
+
+          .logo-btn, .logo-text {
+            font-size: 15px;
+          }
+
+          .user-name {
+            display: none;
+          }
+
+          .user-actions {
+            gap: 8px;
+          }
+
+          .user-credits {
+            font-size: 12px;
+          }
+
+          .upgrade-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+          }
+
+          .logout-btn {
+            padding: 6px 10px;
+            font-size: 11px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .user-header {
+            padding: 8px 12px;
+          }
+
+          .logo-btn, .logo-text {
+            font-size: 14px;
+          }
+
+          .user-credits {
+            display: none;
+          }
+
+          .upgrade-btn {
+            padding: 6px 10px;
+            font-size: 11px;
+          }
+
+          .logout-btn {
+            padding: 6px 8px;
+            font-size: 10px;
+          }
+        }
         
         @media (max-width: 640px) {
           .cards-grid {
@@ -2402,102 +2495,12 @@ export default function App() {
         
         @media print {
           .golf-tool {
-            background: white !important;
-            color: black !important;
+            background: white;
+            color: black;
           }
           
           .results-footer {
             display: none;
-          }
-
-          /* Course Strategy print styles */
-          .user-header,
-          .course-strategy-view .results-nav,
-          .course-footer {
-            display: none !important;
-          }
-
-          .course-strategy-view {
-            padding-top: 0 !important;
-            max-width: 100% !important;
-          }
-
-          .course-strategy-content {
-            padding: 0 !important;
-          }
-
-          .course-header h1 {
-            color: black !important;
-            font-size: 28px !important;
-          }
-
-          .course-subtitle {
-            color: #666 !important;
-          }
-
-          .strategy-section {
-            background: white !important;
-            border: 1px solid #ddd !important;
-            border-radius: 8px !important;
-            padding: 16px !important;
-            margin-bottom: 16px !important;
-            page-break-inside: avoid;
-          }
-
-          .section-header h2 {
-            color: black !important;
-            font-size: 18px !important;
-          }
-
-          .overview-text,
-          .hole-strategy,
-          .tip-desc {
-            color: #333 !important;
-          }
-
-          .hole-card {
-            background: #f9f9f9 !important;
-            border: 1px solid #ddd !important;
-            page-break-inside: avoid;
-          }
-
-          .hole-number {
-            color: #2d5a2d !important;
-          }
-
-          .hole-par, .hole-yardage, .course-meta span {
-            color: #666 !important;
-          }
-
-          .hole-danger {
-            color: #c44 !important;
-          }
-
-          .tip-card {
-            background: #f0f7f0 !important;
-            border-left-color: #2d5a2d !important;
-          }
-
-          .tip-title {
-            color: #2d5a2d !important;
-          }
-
-          .target-card {
-            background: #f9f9f9 !important;
-            border: 1px solid #ddd !important;
-          }
-
-          .target-label {
-            color: #666 !important;
-          }
-
-          .target-score {
-            color: black !important;
-          }
-
-          .checklist li {
-            color: #333 !important;
-            border-bottom-color: #eee !important;
           }
         }
 
@@ -2591,21 +2594,6 @@ export default function App() {
           max-width: 900px;
           margin: 0 auto;
           padding: 20px;
-          padding-top: 80px; /* Account for fixed header */
-        }
-
-        .course-strategy-view .results-nav {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          margin-bottom: 24px;
-          padding-bottom: 16px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .course-strategy-view .nav-logo {
-          color: rgba(240, 244, 232, 0.5);
-          font-size: 14px;
         }
 
         .course-strategy-content {
@@ -2776,8 +2764,78 @@ export default function App() {
         }
 
         .course-footer {
-          padding: 20px 0;
-          text-align: center;
+          padding: 24px 0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 16px;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          margin-top: 20px;
+        }
+
+        .course-footer-actions {
+          display: flex;
+          gap: 12px;
+        }
+
+        .save-btn, .share-btn {
+          padding: 12px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          border-radius: 10px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s;
+        }
+
+        .save-btn {
+          background: linear-gradient(135deg, #7cb97c, #5a9a5a);
+          color: #0d1f0d;
+          border: none;
+        }
+
+        .save-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(124, 185, 124, 0.3);
+        }
+
+        .share-btn {
+          background: transparent;
+          color: #7cb97c;
+          border: 1px solid rgba(124, 185, 124, 0.4);
+        }
+
+        .share-btn:hover {
+          background: rgba(124, 185, 124, 0.1);
+        }
+
+        @media (max-width: 600px) {
+          .course-footer {
+            flex-direction: column;
+          }
+          
+          .course-footer-actions {
+            width: 100%;
+          }
+
+          .save-btn, .share-btn {
+            flex: 1;
+          }
+        }
+
+        @media print {
+          .course-footer, .results-nav, .back-btn {
+            display: none !important;
+          }
+          
+          .course-strategy-view {
+            padding: 0;
+          }
+          
+          .course-strategy-content {
+            padding: 0;
+          }
         }
       `}</style>
       
@@ -2787,6 +2845,7 @@ export default function App() {
           onNewAnalysis={startNewAnalysis}
           onViewAnalysis={viewAnalysis}
           onNewCourseStrategy={openCourseStrategy}
+          onViewCourseStrategy={viewCourseStrategy}
         />
       )}
 
@@ -2800,8 +2859,10 @@ export default function App() {
               </div>
               
               <header className="tool-header">
-                <div className="logo">Golf Strategy</div>
-                <h1 className="tool-title">Improve Your Golf Game</h1>
+                <button className="logo-link" onClick={() => isAuthenticated ? setView('dashboard') : setView('landing')}>
+                  ⛳ GolfStrategy
+                </button>
+                <h1 className="tool-title">Improve Your Scores</h1>
               </header>
             </>
           )}
@@ -2935,6 +2996,25 @@ export default function App() {
             <button className="back-btn" onClick={() => { setView('dashboard'); setCourseStrategyData(null); }}>
               ← Back to Dashboard
             </button>
+            <div className="course-footer-actions">
+              <button className="save-btn" onClick={() => window.print()}>
+                🖨️ Print / Save PDF
+              </button>
+              <button className="share-btn" onClick={() => {
+                if (navigator.share) {
+                  navigator.share({
+                    title: `${courseStrategyData.courseName} - Course Strategy`,
+                    text: `My strategy for playing ${courseStrategyData.courseName}`,
+                    url: window.location.href
+                  });
+                } else {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert('Link copied to clipboard!');
+                }
+              }}>
+                📤 Share
+              </button>
+            </div>
           </div>
         </div>
       )}
