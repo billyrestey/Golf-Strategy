@@ -1,113 +1,58 @@
-// GHIN Handicap Lookup Service
-// Fetches current handicap index from GHIN's public lookup
+// Handicap Tracking Service
+// Note: GHIN's API requires authentication, so we can't do public lookups
+// Instead, we'll track handicap history manually and let users update it
 
+// Try to look up GHIN (this will likely fail without auth, but worth trying)
 export async function lookupGHIN(ghinNumber) {
   try {
-    // GHIN has a public API endpoint used by their lookup tool
+    // Try the public-facing API that the GHIN website uses
+    // This may or may not work depending on GHIN's current security
     const response = await fetch(
-      `https://api.ghin.com/api/v1/golfers/search.json?per_page=1&page=1&golfer_id=${ghinNumber}`,
+      `https://api2.ghin.com/api/v1/public/login.json`,
       {
+        method: 'POST',
         headers: {
-          'Accept': 'application/json',
           'Content-Type': 'application/json',
-        }
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          user: {
+            email_or_ghin: ghinNumber,
+            remember_me: false
+          }
+        })
       }
     );
 
+    // If we get here, check if there's useful data
+    // Most likely this will require full auth
     if (!response.ok) {
-      throw new Error('GHIN lookup failed');
+      // Fall back to returning a "manual entry required" response
+      return { 
+        success: false, 
+        requiresManualEntry: true,
+        error: 'GHIN lookup requires authentication. Please enter your handicap manually.' 
+      };
     }
 
     const data = await response.json();
+    return { success: false, requiresManualEntry: true };
     
-    if (!data.golfers || data.golfers.length === 0) {
-      return { success: false, error: 'GHIN number not found' };
-    }
-
-    const golfer = data.golfers[0];
-    
-    return {
-      success: true,
-      data: {
-        ghinNumber: golfer.ghin,
-        firstName: golfer.first_name,
-        lastName: golfer.last_name,
-        handicapIndex: golfer.handicap_index,
-        lowHandicapIndex: golfer.low_hi,
-        club: golfer.club_name,
-        association: golfer.assoc_name,
-        state: golfer.state,
-        lastRevision: golfer.rev_date,
-        trend: golfer.hi_trend // 'up', 'down', or 'stable'
-      }
-    };
   } catch (error) {
     console.error('GHIN lookup error:', error);
-    
-    // Fallback: try the alternative endpoint
-    try {
-      const altResponse = await fetch(
-        `https://api.ghin.com/api/v1/golfer/${ghinNumber}/profile.json`,
-        {
-          headers: {
-            'Accept': 'application/json',
-          }
-        }
-      );
-      
-      if (altResponse.ok) {
-        const altData = await altResponse.json();
-        return {
-          success: true,
-          data: {
-            ghinNumber: altData.golfer?.ghin,
-            firstName: altData.golfer?.first_name,
-            lastName: altData.golfer?.last_name,
-            handicapIndex: altData.golfer?.handicap_index,
-            club: altData.golfer?.club_name,
-          }
-        };
-      }
-    } catch (altError) {
-      console.error('GHIN alternate lookup error:', altError);
-    }
-    
-    return { success: false, error: 'Unable to fetch GHIN data' };
+    return { 
+      success: false, 
+      requiresManualEntry: true,
+      error: 'GHIN lookup unavailable. Please enter your handicap manually.' 
+    };
   }
 }
 
-// Get recent score history (if available)
+// For now, we'll just return the manual entry prompt
 export async function getGHINScores(ghinNumber) {
-  try {
-    const response = await fetch(
-      `https://api.ghin.com/api/v1/golfer/${ghinNumber}/scores.json?per_page=20`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        }
-      }
-    );
-
-    if (!response.ok) {
-      return { success: false, error: 'Could not fetch scores' };
-    }
-
-    const data = await response.json();
-    
-    return {
-      success: true,
-      scores: data.scores?.map(score => ({
-        date: score.played_at,
-        course: score.course_name,
-        score: score.adjusted_gross_score,
-        rating: score.course_rating,
-        slope: score.slope_rating,
-        differential: score.score_differential,
-        holes: score.number_of_holes
-      })) || []
-    };
-  } catch (error) {
-    console.error('GHIN scores error:', error);
-    return { success: false, error: 'Unable to fetch scores' };
-  }
+  return { 
+    success: false, 
+    requiresManualEntry: true,
+    error: 'Score history requires GHIN authentication.' 
+  };
 }

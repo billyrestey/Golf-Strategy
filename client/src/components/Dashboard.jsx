@@ -243,24 +243,17 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
           </div>
         </div>
         
-        {/* GHIN Link/Refresh */}
+        {/* Handicap Update Button */}
         <div className="ghin-actions">
-          {user?.ghin_number ? (
-            <button 
-              className="refresh-handicap-btn"
-              onClick={refreshHandicap}
-              disabled={refreshingHandicap}
-            >
-              {refreshingHandicap ? '↻ Refreshing...' : '↻ Refresh from GHIN'}
-            </button>
-          ) : (
-            <button 
-              className="link-ghin-btn"
-              onClick={() => setShowGHINModal(true)}
-            >
-              🔗 Link GHIN Account
-            </button>
-          )}
+          <button 
+            className="link-ghin-btn"
+            onClick={() => {
+              setGhinNumber(user?.handicap?.toString() || '');
+              setShowGHINModal(true);
+            }}
+          >
+            ✏️ Update Handicap
+          </button>
         </div>
 
         <div className="progress-bar-container">
@@ -566,70 +559,66 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
         </div>
       )}
 
-      {/* GHIN Link Modal */}
+      {/* GHIN Link Modal - Now Handicap Update Modal */}
       {showGHINModal && (
         <div className="modal-overlay" onClick={() => setShowGHINModal(false)}>
           <div className="modal-content ghin-modal" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowGHINModal(false)}>×</button>
-            <h2>🔗 Link GHIN Account</h2>
+            <h2>📊 Update Handicap</h2>
             <p className="modal-description">
-              Connect your GHIN number to automatically track your official handicap index.
+              Keep your handicap up to date to track your progress toward your goals.
             </p>
             
-            {!ghinData ? (
-              <>
-                <div className="form-group">
-                  <label>GHIN Number</label>
-                  <input
-                    type="text"
-                    value={ghinNumber}
-                    onChange={e => setGhinNumber(e.target.value)}
-                    placeholder="1234567"
-                    maxLength={10}
-                  />
-                </div>
-                
-                {ghinError && (
-                  <div className="ghin-error">{ghinError}</div>
-                )}
-                
-                <button 
-                  className="submit-btn"
-                  onClick={lookupGHIN}
-                  disabled={ghinLoading || !ghinNumber.trim()}
-                >
-                  {ghinLoading ? 'Looking up...' : 'Look Up'}
-                </button>
-              </>
-            ) : (
-              <div className="ghin-result">
-                <div className="ghin-profile">
-                  <div className="ghin-name">{ghinData.firstName} {ghinData.lastName}</div>
-                  <div className="ghin-club">{ghinData.club}</div>
-                  <div className="ghin-handicap-large">
-                    <span className="handicap-value">{ghinData.handicapIndex}</span>
-                    <span className="handicap-label">Handicap Index</span>
-                    {ghinData.trend && (
-                      <span className={`trend-indicator ${ghinData.trend}`}>
-                        {ghinData.trend === 'down' ? '↓' : ghinData.trend === 'up' ? '↑' : '–'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="ghin-actions-modal">
-                  <button className="submit-btn" onClick={linkGHIN} disabled={ghinLoading}>
-                    {ghinLoading ? 'Linking...' : 'Link This Account'}
-                  </button>
-                  <button 
-                    className="cancel-btn"
-                    onClick={() => { setGhinData(null); setGhinNumber(''); }}
-                  >
-                    Try Different Number
-                  </button>
-                </div>
-              </div>
+            <div className="form-group">
+              <label>Current Handicap Index</label>
+              <input
+                type="number"
+                step="0.1"
+                value={ghinNumber}
+                onChange={e => setGhinNumber(e.target.value)}
+                placeholder="14.7"
+              />
+            </div>
+            
+            {ghinError && (
+              <div className="ghin-error">{ghinError}</div>
             )}
+            
+            <button 
+              className="submit-btn"
+              onClick={async () => {
+                if (!ghinNumber.trim()) return;
+                setGhinLoading(true);
+                try {
+                  const response = await fetch(`${API_URL}/api/auth/profile`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ handicap: parseFloat(ghinNumber) })
+                  });
+                  if (response.ok) {
+                    setShowGHINModal(false);
+                    setGhinNumber('');
+                    if (refreshUser) refreshUser();
+                  } else {
+                    setGhinError('Failed to update handicap');
+                  }
+                } catch (error) {
+                  setGhinError('Failed to update handicap');
+                } finally {
+                  setGhinLoading(false);
+                }
+              }}
+              disabled={ghinLoading || !ghinNumber.trim()}
+            >
+              {ghinLoading ? 'Saving...' : 'Update Handicap'}
+            </button>
+            
+            <p className="modal-hint">
+              💡 Tip: Check your official handicap on the <a href="https://www.ghin.com" target="_blank" rel="noopener noreferrer">GHIN website</a> or app.
+            </p>
           </div>
         </div>
       )}
@@ -1308,6 +1297,24 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis }) {
         .cancel-btn:hover {
           color: #fff;
           border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .modal-hint {
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          font-size: 13px;
+          color: rgba(240, 244, 232, 0.5);
+          text-align: center;
+        }
+
+        .modal-hint a {
+          color: #7cb97c;
+          text-decoration: none;
+        }
+
+        .modal-hint a:hover {
+          text-decoration: underline;
         }
 
         @media (max-width: 640px) {
