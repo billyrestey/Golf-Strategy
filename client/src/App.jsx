@@ -2287,7 +2287,7 @@ export default function App() {
               
               <header className="tool-header">
                 <div className="logo">Golf Strategy</div>
-                <h1 className="tool-title">Improve Your Scores</h1>
+                <h1 className="tool-title">Improve Your Golf Game</h1>
               </header>
             </>
           )}
