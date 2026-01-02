@@ -61,20 +61,9 @@ db.exec(`
     FOREIGN KEY (analysis_id) REFERENCES analyses(id)
   );
 
-  CREATE TABLE IF NOT EXISTS course_strategies (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    course_name TEXT NOT NULL,
-    tees TEXT,
-    strategy_json TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_analyses_user ON analyses(user_id);
   CREATE INDEX IF NOT EXISTS idx_rounds_user ON rounds(user_id);
-  CREATE INDEX IF NOT EXISTS idx_course_strategies_user ON course_strategies(user_id);
 `);
 
 // Migration: Add target_handicap column if it doesn't exist
@@ -222,42 +211,6 @@ export const getUserStats = (userId) => {
     WHERE user_id = ?
   `);
   return stmt.get(userId);
-};
-
-// Course Strategy functions
-export const saveCourseStrategy = (userId, data) => {
-  const stmt = db.prepare(`
-    INSERT INTO course_strategies (user_id, course_name, tees, strategy_json)
-    VALUES (?, ?, ?, ?)
-  `);
-  const result = stmt.run(
-    userId,
-    data.courseName,
-    data.tees || '',
-    JSON.stringify(data.strategy)
-  );
-  return result.lastInsertRowid;
-};
-
-export const getCourseStrategiesByUser = (userId) => {
-  const stmt = db.prepare(`
-    SELECT id, course_name, tees, created_at 
-    FROM course_strategies 
-    WHERE user_id = ? 
-    ORDER BY created_at DESC
-  `);
-  return stmt.all(userId);
-};
-
-export const getCourseStrategyById = (id, userId) => {
-  const stmt = db.prepare(`
-    SELECT * FROM course_strategies WHERE id = ? AND user_id = ?
-  `);
-  const row = stmt.get(id, userId);
-  if (row && row.strategy_json) {
-    row.strategy_json = JSON.parse(row.strategy_json);
-  }
-  return row;
 };
 
 export default db;

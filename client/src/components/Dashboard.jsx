@@ -3,10 +3,9 @@ import { useAuth } from '../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseStrategy, onViewCourseStrategy }) {
+export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseStrategy }) {
   const { user, token, refreshUser } = useAuth();
   const [analyses, setAnalyses] = useState([]);
-  const [courseStrategies, setCourseStrategies] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +36,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [analysesRes, roundsRes, statsRes, courseRes] = await Promise.all([
+      const [analysesRes, roundsRes, statsRes] = await Promise.all([
         fetch(`${API_URL}/api/analyses`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -46,10 +45,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         }),
         fetch(`${API_URL}/api/stats`, {
           headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/api/course-strategies`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }).catch(() => ({ ok: false })) // Handle if endpoint doesn't exist yet
+        })
       ]);
 
       if (analysesRes.ok) {
@@ -63,10 +59,6 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
       if (statsRes.ok) {
         const data = await statsRes.json();
         setStats(data.stats);
-      }
-      if (courseRes.ok) {
-        const data = await courseRes.json();
-        setCourseStrategies(data.strategies || []);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -232,7 +224,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         </div>
         <div className="dash-header-buttons">
           <button className="new-course-btn" onClick={onNewCourseStrategy}>
-            +New Course Strategy
+            🗺️ New Course Strategy
           </button>
           <button className="new-analysis-btn" onClick={onNewAnalysis}>
             + New Analysis
@@ -326,12 +318,6 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
           onClick={() => setActiveTab('analyses')}
         >
           Analyses ({analyses.length})
-        </button>
-        <button 
-          className={`tab ${activeTab === 'courses' ? 'active' : ''}`}
-          onClick={() => setActiveTab('courses')}
-        >
-          Courses ({courseStrategies.length})
         </button>
         <button 
           className={`tab ${activeTab === 'rounds' ? 'active' : ''}`}
@@ -441,42 +427,6 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
                 <p>Create your first analysis to get started</p>
                 <button className="primary-btn" onClick={onNewAnalysis}>
                   Create Analysis
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'courses' && (
-          <div className="courses-tab">
-            {courseStrategies.length > 0 ? (
-              <div className="courses-list">
-                {courseStrategies.map((course) => (
-                  <div 
-                    key={course.id} 
-                    className="course-card"
-                    onClick={() => onViewCourseStrategy && onViewCourseStrategy(course.id)}
-                  >
-                    <div className="course-info">
-                      <div className="course-name">{course.course_name}</div>
-                      <div className="course-meta">
-                        <span>{formatDate(course.created_at)}</span>
-                        {course.tees && <><span>•</span><span>{course.tees}</span></>}
-                      </div>
-                    </div>
-                    <div className="course-action">
-                      View →
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                <div className="empty-icon">🗺️</div>
-                <h3>No course strategies yet</h3>
-                <p>Generate a strategy for your next round</p>
-                <button className="primary-btn" onClick={onNewCourseStrategy}>
-                  + New Course Strategy
                 </button>
               </div>
             )}
@@ -996,50 +946,6 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         }
 
         .analysis-action {
-          color: #7cb97c;
-          font-weight: 500;
-          font-size: 14px;
-        }
-
-        /* Course Strategy Cards */
-        .courses-list {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .course-card {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 12px;
-          padding: 20px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          cursor: pointer;
-          transition: all 0.2s;
-          margin-bottom: 12px;
-        }
-
-        .course-card:hover {
-          background: rgba(255, 255, 255, 0.06);
-          border-color: rgba(124, 185, 124, 0.3);
-        }
-
-        .course-name {
-          font-weight: 600;
-          font-size: 16px;
-          margin-bottom: 4px;
-        }
-
-        .course-meta {
-          font-size: 13px;
-          color: rgba(240, 244, 232, 0.5);
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-
-        .course-action {
           color: #7cb97c;
           font-weight: 500;
           font-size: 14px;

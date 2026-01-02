@@ -20,10 +20,7 @@ import {
   saveRound,
   getRoundsByUser,
   getUserStats,
-  updateUser,
-  saveCourseStrategy,
-  getCourseStrategiesByUser,
-  getCourseStrategyById
+  updateUser
 } from './db/database.js';
 
 dotenv.config();
@@ -512,43 +509,11 @@ Format your response as JSON with this structure:
     
     const strategy = JSON.parse(jsonMatch[0]);
 
-    // Save to database
-    const strategyId = saveCourseStrategy(req.user.userId, {
-      courseName: courseName,
-      tees: tees,
-      strategy: strategy
-    });
-
-    res.json({ success: true, strategy, strategyId });
+    res.json({ success: true, strategy });
 
   } catch (error) {
     console.error('Course strategy error:', error);
     res.status(500).json({ error: 'Failed to generate course strategy' });
-  }
-});
-
-// Get all course strategies for user
-app.get('/api/course-strategies', authenticateToken, (req, res) => {
-  try {
-    const strategies = getCourseStrategiesByUser(req.user.userId);
-    res.json({ strategies });
-  } catch (error) {
-    console.error('Error fetching course strategies:', error);
-    res.status(500).json({ error: 'Failed to fetch course strategies' });
-  }
-});
-
-// Get single course strategy
-app.get('/api/course-strategies/:id', authenticateToken, (req, res) => {
-  try {
-    const strategy = getCourseStrategyById(req.params.id, req.user.userId);
-    if (!strategy) {
-      return res.status(404).json({ error: 'Course strategy not found' });
-    }
-    res.json({ strategy });
-  } catch (error) {
-    console.error('Error fetching course strategy:', error);
-    res.status(500).json({ error: 'Failed to fetch course strategy' });
   }
 });
 
