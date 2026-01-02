@@ -589,7 +589,7 @@ export default function App() {
                   className="unlock-btn"
                   onClick={() => { setAuthMode('register'); setShowAuthModal(true); }}
                 >
-                  Sign Up Free to Unlock
+                  Sign Up to Unlock
                 </button>
                 <p className="unlock-note">
                   Already have an account? <button className="link-btn" onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}>Sign in</button>
