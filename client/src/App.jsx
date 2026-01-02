@@ -7,10 +7,11 @@ import Dashboard from './components/Dashboard';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function App() {
-  const { user, token, isAuthenticated, loading: authLoading, logout, canAnalyze, updateCredits, refreshUser } = useAuth();
+  const { user, token, isAuthenticated, loading: authLoading, logout, canAnalyze, updateCredits } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
+  const [showPricingFlow, setShowPricingFlow] = useState(false); // Combined signup + pricing
   const [currentAnalysisId, setCurrentAnalysisId] = useState(null);
   const [view, setView] = useState('landing'); // 'landing', 'dashboard', 'analysis', 'results'
   
@@ -184,18 +185,12 @@ export default function App() {
     setView(isAuthenticated ? 'dashboard' : 'landing');
   };
 
-  // Unlock full analysis after signup/login - but only if they have credits or subscription
+  // Unlock full analysis after signup/login
   const unlockAnalysis = async () => {
     if (!pendingAnalysis || !isAuthenticated) return;
     
-    // Check if user can view (has credits or is pro)
-    if (!canAnalyze) {
-      // User signed up but has no credits - keep preview mode, show pricing
-      return;
-    }
-    
     try {
-      // Save the analysis to user's account (uses a credit)
+      // Save the analysis to user's account
       const response = await fetch(`${API_URL}/api/analyses/save`, {
         method: 'POST',
         headers: {
@@ -217,34 +212,24 @@ export default function App() {
         if (data.creditsRemaining !== 'unlimited') {
           updateCredits(data.creditsRemaining);
         }
-        // Reveal full analysis
-        setPreviewMode(false);
-        setPendingAnalysis(null);
-      } else {
-        const errorData = await response.json();
-        if (errorData.needsUpgrade) {
-          // No credits - keep in preview mode
-          return;
-        }
       }
+      
+      // Reveal full analysis
+      setPreviewMode(false);
+      setPendingAnalysis(null);
     } catch (error) {
       console.error('Error saving analysis:', error);
+      // Still show full analysis even if save fails
+      setPreviewMode(false);
     }
   };
 
-  // When user logs in while in preview mode, try to unlock (will check credits)
+  // When user logs in while in preview mode, unlock the analysis
   useEffect(() => {
     if (isAuthenticated && previewMode && pendingAnalysis) {
       unlockAnalysis();
     }
-  }, [isAuthenticated, previewMode, canAnalyze]);
-
-  // Retry unlock when user gains credits (after purchase)
-  useEffect(() => {
-    if (canAnalyze && previewMode && pendingAnalysis && isAuthenticated) {
-      unlockAnalysis();
-    }
-  }, [canAnalyze]);
+  }, [isAuthenticated, previewMode]);
 
   // Start new analysis from dashboard
   const startNewAnalysis = () => {
@@ -284,25 +269,6 @@ export default function App() {
       setView('dashboard');
     }
   }, [isAuthenticated]);
-
-  // Handle payment success - refresh user and try to unlock analysis
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('payment') === 'success') {
-      // Clear the URL parameter
-      window.history.replaceState({}, '', window.location.pathname);
-      
-      // Refresh user data to get updated credits
-      if (refreshUser) {
-        refreshUser().then(() => {
-          // If we have a pending analysis, try to unlock it
-          if (previewMode && pendingAnalysis) {
-            setTimeout(() => unlockAnalysis(), 500);
-          }
-        });
-      }
-    }
-  }, []);
 
   // PDF download function
   const downloadPDF = async (type = 'strategy') => {
@@ -583,8 +549,6 @@ export default function App() {
 
     // Preview mode - show teaser with blur
     if (previewMode) {
-      const isLoggedInNoCredits = isAuthenticated && !canAnalyze;
-      
       return (
         <div className="results-container preview-mode">
           {/* Teaser Header - Always Visible */}
@@ -613,49 +577,24 @@ export default function App() {
           <div className="blurred-preview">
             <div className="blur-overlay">
               <div className="unlock-prompt">
-                {isLoggedInNoCredits ? (
-                  <>
-                    <h2>🔓 Get Your Full Strategy</h2>
-                    <p>Your personalized game plan is ready! Unlock it to see:</p>
-                    <ul className="unlock-features">
-                      <li>✓ Hole-by-hole course strategy</li>
-                      <li>✓ Personalized practice plan</li>
-                      <li>✓ Mental game techniques</li>
-                      <li>✓ Target stats to track</li>
-                      <li>✓ 30-day improvement roadmap</li>
-                    </ul>
-                    <button 
-                      className="unlock-btn"
-                      onClick={() => setShowPricingModal(true)}
-                    >
-                      Get Full Strategy — $4.99
-                    </button>
-                    <p className="unlock-note">
-                      Or <button className="link-btn" onClick={() => setShowPricingModal(true)}>subscribe for unlimited analyses</button>
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <h2>Unlock Your Full Strategy</h2>
-                    <p>Get your complete game plan including:</p>
-                    <ul className="unlock-features">
-                      <li>✓ Hole-by-hole course strategy</li>
-                      <li>✓ Personalized practice plan</li>
-                      <li>✓ Mental game techniques</li>
-                      <li>✓ Target stats to track</li>
-                      <li>✓ 30-day improvement roadmap</li>
-                    </ul>
-                    <button 
-                      className="unlock-btn"
-                      onClick={() => { setAuthMode('register'); setShowAuthModal(true); }}
-                    >
-                      Sign Up Free to Unlock
-                    </button>
-                    <p className="unlock-note">
-                      Already have an account? <button className="link-btn" onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}>Sign in</button>
-                    </p>
-                  </>
-                )}
+                <h2>Unlock Your Full Strategy</h2>
+                <p>Get your complete game plan including:</p>
+                <ul className="unlock-features">
+                  <li>✓ Hole-by-hole course strategy</li>
+                  <li>✓ Personalized practice plan</li>
+                  <li>✓ Mental game techniques</li>
+                  <li>✓ Target stats to track</li>
+                  <li>✓ 30-day improvement roadmap</li>
+                </ul>
+                <button 
+                  className="unlock-btn"
+                  onClick={() => { setAuthMode('register'); setShowPricingFlow(true); setShowAuthModal(true); }}
+                >
+                  Get Full Strategy
+                </button>
+                <p className="unlock-note">
+                  Already have an account? <button className="link-btn" onClick={() => { setAuthMode('login'); setShowPricingFlow(true); setShowAuthModal(true); }}>Sign in</button>
+                </p>
               </div>
             </div>
             
@@ -1034,9 +973,10 @@ export default function App() {
       {/* Auth Modal */}
       <AuthModal 
         isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)}
+        onClose={() => { setShowAuthModal(false); setShowPricingFlow(false); }}
         initialMode={authMode}
         defaultName={formData.name}
+        showPricing={showPricingFlow}
       />
       
       {/* Pricing Modal */}
@@ -1135,9 +1075,9 @@ export default function App() {
         }
         
         .logo {
-          font-family: 'Fraunces', Georgia, serif;
-          font-size: 14px;
-          letter-spacing: 3px;
+          font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
+          font-size: 16px;
+          letter-spacing: 1px;
           text-transform: uppercase;
           color: #7cb97c;
           margin-bottom: 8px;
@@ -2185,11 +2125,12 @@ export default function App() {
           background: none;
           border: none;
           color: #7cb97c;
-          font-size: 16px;
+          font-size: 18px;
           font-weight: 600;
           cursor: pointer;
-          font-family: inherit;
+          font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
           padding: 0;
+          letter-spacing: -0.5px;
         }
         
         .logo-btn:hover {
@@ -2198,8 +2139,10 @@ export default function App() {
 
         .logo-text {
           font-weight: 600;
-          font-size: 16px;
+          font-size: 18px;
           color: #7cb97c;
+          font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
+          letter-spacing: -0.5px;
         }
 
         .landing-header {

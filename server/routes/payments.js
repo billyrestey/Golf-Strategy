@@ -10,13 +10,47 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const PRICES = {
   monthly: process.env.STRIPE_PRICE_MONTHLY,
   yearly: process.env.STRIPE_PRICE_YEARLY,
-  credits_5: process.env.STRIPE_PRICE_CREDITS_5
+  credits: process.env.STRIPE_PRICE_CREDITS_5 // Single strategy ($4.99)
 };
+
+// Trial code for testing (remove later)
+const TRIAL_CODE = process.env.TRIAL_CODE || 'GOLFBETA2026';
+
+// Activate trial (for testing with friends)
+router.post('/activate-trial', authenticateToken, async (req, res) => {
+  try {
+    const { code } = req.body;
+    const user = findUserById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (code !== TRIAL_CODE) {
+      return res.status(400).json({ error: 'Invalid trial code' });
+    }
+
+    // Give user pro status for trial
+    updateUser(user.id, {
+      subscription_status: 'pro',
+      credits: 99 // Lots of credits for testing
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Trial activated! You now have Pro access.' 
+    });
+
+  } catch (error) {
+    console.error('Trial activation error:', error);
+    res.status(500).json({ error: 'Failed to activate trial' });
+  }
+});
 
 // Create checkout session for subscription
 router.post('/create-checkout', authenticateToken, async (req, res) => {
   try {
-    const { priceType } = req.body; // 'monthly', 'yearly', or 'credits_5'
+    const { priceType } = req.body; // 'monthly', 'yearly', or 'credits'
     const user = findUserById(req.user.userId);
 
     if (!user) {
@@ -34,8 +68,8 @@ router.post('/create-checkout', authenticateToken, async (req, res) => {
       customer_email: user.email,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: isSubscription ? 'subscription' : 'payment',
-      success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/pricing`,
+      success_url: `${process.env.FRONTEND_URL}?payment=success`,
+      cancel_url: `${process.env.FRONTEND_URL}`,
       metadata: {
         userId: user.id.toString(),
         priceType
@@ -100,10 +134,10 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         const userId = parseInt(session.metadata.userId);
         const priceType = session.metadata.priceType;
 
-        if (priceType === 'credits_5') {
-          // Add credits
+        if (priceType === 'credits') {
+          // Add 1 credit for single strategy purchase
           const user = findUserById(userId);
-          updateUser(userId, { credits: user.credits + 5 });
+          updateUser(userId, { credits: user.credits + 1 });
         } else {
           // Subscription
           updateUser(userId, {
