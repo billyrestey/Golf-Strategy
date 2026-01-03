@@ -7,10 +7,11 @@ const router = express.Router();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Price IDs from Stripe Dashboard - update these with your actual price IDs
 const PRICES = {
-  monthly: process.env.STRIPE_PRICE_MONTHLY,
-  yearly: process.env.STRIPE_PRICE_YEARLY,
-  credits: process.env.STRIPE_PRICE_CREDITS_5 // Single strategy ($4.99)
+  single: process.env.STRIPE_PRICE_SINGLE,    // $5 one-time - 1 strategy
+  monthly: process.env.STRIPE_PRICE_MONTHLY,  // $10/month - unlimited
+  yearly: process.env.STRIPE_PRICE_YEARLY     // $50/year - unlimited
 };
 
 // Trial code for testing (remove later)
@@ -50,7 +51,7 @@ router.post('/activate-trial', authenticateToken, async (req, res) => {
 // Create checkout session for subscription
 router.post('/create-checkout', authenticateToken, async (req, res) => {
   try {
-    const { priceType } = req.body; // 'monthly', 'yearly', or 'credits'
+    const { priceType } = req.body; // 'single', 'monthly', or 'yearly'
     const user = findUserById(req.user.userId);
 
     if (!user) {
@@ -59,7 +60,8 @@ router.post('/create-checkout', authenticateToken, async (req, res) => {
 
     const priceId = PRICES[priceType];
     if (!priceId) {
-      return res.status(400).json({ error: 'Invalid price type' });
+      console.error('Invalid price type or missing price ID:', priceType, PRICES);
+      return res.status(400).json({ error: `Invalid price type: ${priceType}. Make sure STRIPE_PRICE_${priceType.toUpperCase()} is set.` });
     }
 
     const isSubscription = priceType === 'monthly' || priceType === 'yearly';
@@ -134,36 +136,41 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         const userId = parseInt(session.metadata.userId);
         const priceType = session.metadata.priceType;
 
-        if (priceType === 'credits') {
-          // Add 1 credit for single strategy purchase
+        console.log('Checkout completed:', { userId, priceType });
+
+        if (priceType === 'single') {
+          // Add 1 credit for single strategy purchase ($5)
           const user = findUserById(userId);
-          updateUser(userId, { credits: user.credits + 1 });
+          updateUser(userId, { credits: (user.credits || 0) + 1 });
+          console.log('Added 1 credit to user', userId);
         } else {
-          // Subscription
+          // Subscription (monthly or yearly) - give pro status
           updateUser(userId, {
             subscription_status: 'pro',
             subscription_id: session.subscription
           });
+          console.log('Activated pro subscription for user', userId);
         }
         break;
       }
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
-        // Find user by subscription ID and update status
-        // This handles upgrades/downgrades
+        console.log('Subscription updated:', subscription.id, subscription.status);
+        // Handle upgrades/downgrades if needed
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        // Find user and downgrade to free
-        // Would need to query by subscription_id
+        console.log('Subscription cancelled:', subscription.id);
+        // Would need to query by subscription_id to find and downgrade user
         break;
       }
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
+        console.log('Payment failed for invoice:', invoice.id);
         // Handle failed payment - maybe send email
         break;
       }

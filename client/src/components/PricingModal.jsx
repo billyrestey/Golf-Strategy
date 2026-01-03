@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = import.meta.env.PROD ? '' : 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function PricingModal({ isOpen, onClose }) {
   const { token, user } = useAuth();
@@ -38,14 +38,14 @@ export default function PricingModal({ isOpen, onClose }) {
 
   const plans = [
     {
-      id: 'credits_5',
-      name: '5 Credits',
-      price: '$4.99',
+      id: 'single',
+      name: 'Single Strategy',
+      price: '$5',
       period: 'one-time',
       features: [
-        '5 game analyses',
-        'PDF strategy cards',
-        'Practice plans',
+        '1 full game analysis',
+        'PDF strategy card',
+        'Practice plan',
         'Never expires'
       ],
       highlight: false
@@ -53,26 +53,27 @@ export default function PricingModal({ isOpen, onClose }) {
     {
       id: 'monthly',
       name: 'Pro Monthly',
-      price: '$9.99',
+      price: '$10',
       period: '/month',
       features: [
         'Unlimited analyses',
         'PDF exports',
         'Progress tracking',
         'Round logging',
-        'Priority support'
+        'Cancel anytime'
       ],
-      highlight: true
+      highlight: true,
+      badge: 'Most Popular'
     },
     {
       id: 'yearly',
       name: 'Pro Yearly',
-      price: '$49.99',
+      price: '$50',
       period: '/year',
       features: [
         'Everything in Pro',
         'Save $70/year',
-        '2 months free',
+        'Best value',
         'Lock in price'
       ],
       highlight: false,
@@ -88,11 +89,6 @@ export default function PricingModal({ isOpen, onClose }) {
         <div className="pricing-header">
           <h2>Upgrade Your Game</h2>
           <p>Choose the plan that works for you</p>
-          {user && (
-            <div className="current-credits">
-              Current credits: <strong>{user.credits}</strong>
-            </div>
-          )}
         </div>
 
         <div className="plans-grid">
@@ -127,6 +123,21 @@ export default function PricingModal({ isOpen, onClose }) {
         </div>
 
         <style>{`
+          .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
+          }
+
           .pricing-modal {
             background: linear-gradient(145deg, #1a3a1a, #0d1f0d);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -135,8 +146,29 @@ export default function PricingModal({ isOpen, onClose }) {
             width: 100%;
             max-width: 800px;
             position: relative;
-            max-height: 90vh;
-            overflow-y: auto;
+            margin: auto;
+          }
+
+          .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 20px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
           }
 
           .pricing-header {
@@ -146,7 +178,7 @@ export default function PricingModal({ isOpen, onClose }) {
 
           .pricing-header h2 {
             font-family: 'Fraunces', Georgia, serif;
-            font-size: 32px;
+            font-size: 28px;
             margin-bottom: 8px;
           }
 
@@ -154,22 +186,9 @@ export default function PricingModal({ isOpen, onClose }) {
             color: rgba(240, 244, 232, 0.6);
           }
 
-          .current-credits {
-            margin-top: 12px;
-            padding: 8px 16px;
-            background: rgba(124, 185, 124, 0.1);
-            border-radius: 20px;
-            display: inline-block;
-            font-size: 14px;
-          }
-
-          .current-credits strong {
-            color: #7cb97c;
-          }
-
           .plans-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 20px;
           }
 
@@ -189,18 +208,21 @@ export default function PricingModal({ isOpen, onClose }) {
           .plan-badge {
             position: absolute;
             top: -10px;
-            right: 16px;
+            left: 50%;
+            transform: translateX(-50%);
             background: linear-gradient(135deg, #7cb97c, #5a9a5a);
             color: #0d1f0d;
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 10px;
+            font-weight: 700;
             padding: 4px 12px;
             border-radius: 20px;
+            white-space: nowrap;
           }
 
           .plan-card h3 {
-            font-size: 18px;
+            font-size: 16px;
             margin-bottom: 12px;
+            margin-top: 8px;
           }
 
           .plan-price {
@@ -221,11 +243,12 @@ export default function PricingModal({ isOpen, onClose }) {
           .plan-features {
             list-style: none;
             margin-bottom: 24px;
+            padding: 0;
           }
 
           .plan-features li {
-            padding: 8px 0;
-            font-size: 14px;
+            padding: 6px 0;
+            font-size: 13px;
             color: rgba(240, 244, 232, 0.8);
           }
 
@@ -259,13 +282,36 @@ export default function PricingModal({ isOpen, onClose }) {
             cursor: not-allowed;
           }
 
-          @media (max-width: 640px) {
+          @media (max-width: 700px) {
+            .modal-overlay {
+              padding: 12px;
+            }
+            
             .pricing-modal {
-              padding: 24px;
+              padding: 24px 16px;
+              margin-top: 20px;
+              margin-bottom: 20px;
+            }
+            
+            .pricing-header h2 {
+              font-size: 24px;
             }
             
             .plans-grid {
               grid-template-columns: 1fr;
+              gap: 16px;
+            }
+            
+            .plan-card {
+              padding: 20px;
+            }
+            
+            .plan-card.highlighted {
+              order: -1;
+            }
+            
+            .plan-price .price {
+              font-size: 32px;
             }
           }
         `}</style>

@@ -338,12 +338,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
         <div className="pricing-options">
           {/* One-time purchase */}
           <div 
-            className={`pricing-card ${selectedPlan === 'credits' ? 'selected' : ''}`}
-            onClick={() => setSelectedPlan('credits')}
+            className={`pricing-card ${selectedPlan === 'single' ? 'selected' : ''}`}
+            onClick={() => setSelectedPlan('single')}
           >
             <div className="pricing-header">
               <span className="pricing-name">Single Strategy</span>
-              <span className="pricing-price">$4.99</span>
+              <span className="pricing-price">$5</span>
             </div>
             <p className="pricing-desc">One full analysis with PDF exports</p>
             <ul className="pricing-features">
@@ -362,14 +362,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
             <div className="popular-badge">Most Popular</div>
             <div className="pricing-header">
               <span className="pricing-name">Pro Monthly</span>
-              <span className="pricing-price">$9.99<span>/mo</span></span>
+              <span className="pricing-price">$10<span>/mo</span></span>
             </div>
             <p className="pricing-desc">Unlimited analyses for serious golfers</p>
             <ul className="pricing-features">
               <li>✓ Unlimited analyses</li>
               <li>✓ All courses & scorecards</li>
               <li>✓ Progress tracking</li>
-              <li>✓ Priority support</li>
+              <li>✓ Cancel anytime</li>
             </ul>
           </div>
 
@@ -378,10 +378,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
             className={`pricing-card ${selectedPlan === 'yearly' ? 'selected' : ''}`}
             onClick={() => setSelectedPlan('yearly')}
           >
-            <div className="savings-badge">Save 58%</div>
+            <div className="savings-badge">Best Value</div>
             <div className="pricing-header">
               <span className="pricing-name">Pro Yearly</span>
-              <span className="pricing-price">$49.99<span>/yr</span></span>
+              <span className="pricing-price">$50<span>/yr</span></span>
             </div>
             <p className="pricing-desc">Best value for committed improvers</p>
             <ul className="pricing-features">
@@ -397,7 +397,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
           disabled={!selectedPlan || loading}
           onClick={() => handlePurchase(selectedPlan)}
         >
-          {loading ? 'Processing...' : selectedPlan ? `Get ${selectedPlan === 'credits' ? 'Single Strategy' : 'Pro Access'}` : 'Select a Plan'}
+          {loading ? 'Processing...' : selectedPlan ? `Get ${selectedPlan === 'single' ? 'Single Strategy' : 'Pro Access'}` : 'Select a Plan'}
         </button>
 
         <p className="secure-note">🔒 Secure payment powered by Stripe</p>
