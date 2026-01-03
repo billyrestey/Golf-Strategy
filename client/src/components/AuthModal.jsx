@@ -443,7 +443,7 @@ const authStyles = `
     bottom: 0;
     background: rgba(0, 0, 0, 0.85);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     z-index: 1000;
     padding: 20px;
@@ -457,6 +457,7 @@ const authStyles = `
     padding: 40px;
     width: 100%;
     position: relative;
+    margin: auto;
   }
 
   .auth-modal {
@@ -465,6 +466,23 @@ const authStyles = `
 
   .pricing-modal {
     max-width: 800px;
+  }
+
+  @media (max-width: 640px) {
+    .modal-overlay {
+      padding: 12px;
+      align-items: flex-start;
+    }
+    
+    .modal-content {
+      padding: 24px;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .modal-content h2 {
+      font-size: 22px;
+    }
   }
 
   .modal-close {
@@ -652,6 +670,7 @@ const pricingStyles = `
   @media (max-width: 700px) {
     .pricing-options {
       grid-template-columns: 1fr;
+      gap: 12px;
     }
   }
 
@@ -663,6 +682,16 @@ const pricingStyles = `
     cursor: pointer;
     transition: all 0.2s;
     position: relative;
+  }
+
+  @media (max-width: 640px) {
+    .pricing-card {
+      padding: 16px;
+    }
+    
+    .pricing-card.popular {
+      margin-top: 8px;
+    }
   }
 
   .pricing-card:hover {

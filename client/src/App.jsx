@@ -66,6 +66,38 @@ export default function App() {
     { id: 'straight_short', label: 'Straight but short', description: 'Contact issues, not curve' }
   ];
 
+  // Handle Stripe payment success redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    
+    if (paymentStatus === 'success' && isAuthenticated) {
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // Refresh user data to get updated subscription
+      if (refreshUser) refreshUser();
+      
+      // Try to restore pending analysis from localStorage
+      const savedPending = localStorage.getItem('pendingAnalysis');
+      const restoredPending = savedPending ? JSON.parse(savedPending) : pendingAnalysis;
+      
+      // If there's a pending analysis, show it
+      if (restoredPending) {
+        setAnalysis(restoredPending.analysis);
+        setPreviewMode(false);
+        setStep(5);
+        setView('results');
+        setPendingAnalysis(null);
+        localStorage.removeItem('pendingAnalysis');
+        setShowAuthModal(false);
+      } else {
+        // Otherwise just go to dashboard
+        setView('dashboard');
+      }
+    }
+  }, [isAuthenticated]);
+
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
     const newCards = files.map(file => ({
@@ -243,10 +275,13 @@ export default function App() {
         if (isPreview) {
           // Store for later and show teaser
           setPreviewMode(true);
-          setPendingAnalysis({
+          const pending = {
             analysis: data.analysis,
             formData: { ...formData }
-          });
+          };
+          setPendingAnalysis(pending);
+          // Also save to localStorage in case of Stripe redirect
+          localStorage.setItem('pendingAnalysis', JSON.stringify(pending));
           setStep(5);
           setView('results');
         } else {

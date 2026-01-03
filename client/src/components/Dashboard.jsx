@@ -1474,6 +1474,32 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
           .round-stats {
             display: none;
           }
+
+          /* Fix dashboard tabs on mobile - make them scroll horizontally */
+          .dash-tabs {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 16px;
+          }
+          
+          .dash-tabs::-webkit-scrollbar {
+            display: none;
+          }
+          
+          .tab {
+            flex-shrink: 0;
+            padding: 8px 14px;
+            font-size: 13px;
+            white-space: nowrap;
+          }
+
+          /* Fix first form row (Date & Score) on mobile */
+          .form-row {
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+          }
         }
       `}</style>
     </div>
