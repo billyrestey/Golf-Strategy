@@ -17,7 +17,7 @@ const PRICES = {
 // Trial code for testing (remove later)
 const TRIAL_CODE = process.env.TRIAL_CODE || 'GOLFBETA2026';
 
-// Activate trial (for testing with friends)
+// Activate trial (gives 1 free analysis)
 router.post('/activate-trial', authenticateToken, async (req, res) => {
   try {
     const { code } = req.body;
@@ -31,15 +31,15 @@ router.post('/activate-trial', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid trial code' });
     }
 
-    // Give user pro status for trial
+    // Give user 1 credit for trial (not pro status)
     updateUser(user.id, {
-      subscription_status: 'pro',
-      credits: 99 // Lots of credits for testing
+      credits: (user.credits || 0) + 1
     });
 
     res.json({ 
       success: true, 
-      message: 'Trial activated! You now have Pro access.' 
+      message: 'Code activated! You have 1 free analysis.',
+      credits: (user.credits || 0) + 1
     });
 
   } catch (error) {

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-export default function PricingModal({ isOpen, onClose }) {
+export default function PricingModal({ isOpen, onClose, onSuccess }) {
   const { token, user, refreshUser } = useAuth();
   const [loading, setLoading] = useState(null);
   const [trialCode, setTrialCode] = useState('');
@@ -60,10 +60,12 @@ export default function PricingModal({ isOpen, onClose }) {
       
       if (data.success) {
         setTrialSuccess(true);
-        if (refreshUser) refreshUser();
+        if (refreshUser) await refreshUser();
         setTimeout(() => {
           onClose();
-        }, 1500);
+          // Trigger success callback to unlock analysis
+          if (onSuccess) onSuccess();
+        }, 1000);
       } else {
         setTrialError(data.error || 'Invalid code');
       }

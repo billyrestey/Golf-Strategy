@@ -20,7 +20,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
   const [ghinEmail, setGhinEmail] = useState('');
   const [ghinPassword, setGhinPassword] = useState('');
 
-  const { login, register, registerWithGhin, token, isAuthenticated, user } = useAuth();
+  const { login, register, registerWithGhin, token, isAuthenticated, user, refreshUser } = useAuth();
 
   // Handle close - PREVENT closing if payment is required
   const handleClose = () => {
@@ -86,11 +86,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
 
       if (data.success) {
         setTrialSuccess(true);
+        // Refresh user data to get updated credits
+        if (refreshUser) await refreshUser();
         setTimeout(() => {
           if (onUnlock) onUnlock();
           onClose();
-          window.location.reload(); // Refresh to update user state
-        }, 1500);
+        }, 1000);
       } else {
         setError(data.error || 'Invalid trial code');
       }

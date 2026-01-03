@@ -1447,6 +1447,20 @@ export default function App() {
       <PricingModal
         isOpen={showPricingModal}
         onClose={() => setShowPricingModal(false)}
+        onSuccess={() => {
+          // After successful trial/payment, unlock the analysis if pending
+          if (pendingAnalysis) {
+            setAnalysis(pendingAnalysis.analysis);
+            if (pendingAnalysis.formData) {
+              setFormData(pendingAnalysis.formData);
+            }
+            setPreviewMode(false);
+            setStep(5);
+            setView('results');
+            setPendingAnalysis(null);
+            localStorage.removeItem('pendingAnalysis');
+          }
+        }}
       />
 
       {/* Course Strategy Modal */}
