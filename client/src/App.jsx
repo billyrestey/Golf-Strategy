@@ -1230,9 +1230,10 @@ export default function App() {
         }
         
         .logo {
-          font-family: 'Fraunces', Georgia, serif;
-          font-size: 16px;
-          letter-spacing: 1px;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          letter-spacing: 3px;
           text-transform: uppercase;
           color: #7cb97c;
           margin-bottom: 8px;
@@ -2967,9 +2968,7 @@ export default function App() {
               </div>
               
               <header className="tool-header">
-                <button className="logo-link" onClick={() => isAuthenticated ? setView('dashboard') : setView('landing')}>
-                  ⛳ GolfStrategy
-                </button>
+                <div className="logo">GOLF STRATEGY</div>
                 <h1 className="tool-title">Improve Your Scores</h1>
               </header>
             </>
