@@ -46,8 +46,9 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://golf-strategy.vercel.app',
   'https://www.golfstrategy.app',
-  'https://golfstrategy.app'
-];
+  'https://golfstrategy.app',
+  process.env.FRONTEND_URL // Include the configured frontend URL
+].filter(Boolean);
 
 app.use(cors({
   origin: function(origin, callback) {
