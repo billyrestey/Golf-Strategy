@@ -170,6 +170,17 @@ Analyze this golfer's game and return a JSON object with the following structure
     },
     "overallApproach": "2-3 sentence philosophy for the round"
   },
+  "holeByHoleStrategy": [
+    {
+      "hole": 1,
+      "par": 4,
+      "yards": 385,
+      "teeShot": "Driver OK" or "3-Wood" or "Hybrid",
+      "light": "green" or "yellow" or "red",
+      "strategy": "Brief strategy for this specific hole",
+      "notes": "Any additional tips or warnings"
+    }
+  ],
   "practicePlan": {
     "weeklySchedule": [
       {
@@ -217,10 +228,12 @@ Analyze this golfer's game and return a JSON object with the following structure
 
 Important guidelines:
 1. Be specific to their miss pattern (${missPattern}). A slicer needs different advice than a hooker.
-2. If scorecard data is available, reference specific holes by number.
-3. Practice drills should directly address their miss pattern.
-4. Be encouraging but realistic about improvement timeline.
-5. The strategy should feel personalized, not generic.
+2. If scorecard data is available, include all 18 holes in holeByHoleStrategy with specific advice based on their patterns.
+3. If NO scorecard data, still generate holeByHoleStrategy with general advice for typical hole types at a course of this caliber.
+4. Practice drills should directly address their miss pattern.
+5. Be encouraging but realistic about improvement timeline.
+6. The strategy should feel personalized, not generic.
+7. For holeByHoleStrategy, "light" should be: "red" for danger holes, "yellow" for conditional, "green" for birdie opportunities.
 
 Return ONLY the JSON object, no other text.`;
 

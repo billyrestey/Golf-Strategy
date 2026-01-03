@@ -247,6 +247,30 @@ export default function App() {
     }
   }, [isAuthenticated, previewMode, pendingAnalysis, showAuthModal]);
 
+  // Handle payment success redirect from Stripe
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    
+    if (paymentStatus === 'success' && isAuthenticated) {
+      // Clear the URL param
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // Refresh user data to get updated credits/subscription
+      if (refreshUser) {
+        refreshUser();
+      }
+      
+      // If we have a pending analysis, unlock it
+      if (pendingAnalysis) {
+        unlockAnalysis();
+      } else {
+        // No pending analysis - go to dashboard
+        setView('dashboard');
+      }
+    }
+  }, [isAuthenticated, pendingAnalysis]);
+
   // Start new analysis from dashboard
   const startNewAnalysis = () => {
     resetForm();
@@ -872,7 +896,8 @@ export default function App() {
                     </div>
                   )}
                   <div className="acceptable-score">
-                    Target: <span>{hole.acceptableScore}</span>
+                    <div className="target-label">Target:</div>
+                    <div className="target-value">{hole.acceptableScore}</div>
                   </div>
                 </div>
               ))}
@@ -900,7 +925,8 @@ export default function App() {
                   </div>
                   {hole.targetScore && (
                     <div className="target-score">
-                      Target: <span>{hole.targetScore}</span>
+                      <div className="target-label">Target:</div>
+                      <div className="target-value">{hole.targetScore}</div>
                     </div>
                   )}
                 </div>
@@ -2072,15 +2098,33 @@ export default function App() {
         
         .acceptable-score,
         .target-score {
-          margin-top: 14px;
-          font-size: 13px;
-          color: rgba(240, 244, 232, 0.5);
+          margin-top: 16px;
+          padding-top: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
         
-        .acceptable-score span,
-        .target-score span {
-          color: #7cb97c;
+        .acceptable-score .target-label,
+        .target-score .target-label {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: rgba(240, 244, 232, 0.5);
+          margin-bottom: 4px;
+        }
+        
+        .acceptable-score .target-value,
+        .target-score .target-value {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 20px;
           font-weight: 600;
+        }
+        
+        .acceptable-score .target-value {
+          color: #d4a017;
+        }
+        
+        .target-score .target-value {
+          color: #7cb97c;
         }
         
         .practice-session {
