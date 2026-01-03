@@ -11,7 +11,7 @@ export function generateStrategyPDF(analysis, userData) {
     try {
       const doc = new PDFDocument({
         size: 'LETTER',
-        margins: { top: 40, bottom: 40, left: 40, right: 40 }
+        margins: { top: 50, bottom: 50, left: 50, right: 50 }
       });
 
       const chunks = [];
@@ -22,253 +22,313 @@ export function generateStrategyPDF(analysis, userData) {
       const colors = {
         darkGreen: '#1a472a',
         lightGreen: '#7cb97c',
+        mediumGreen: '#2d5a3d',
         red: '#c44536',
         yellow: '#d4a017',
         green: '#3d8b40',
-        gray: '#666666',
-        lightGray: '#f5f5f5'
+        gray: '#555555',
+        lightGray: '#f7f7f5',
+        border: '#e0e0e0'
       };
 
-      const pageWidth = doc.page.width - 80;
+      const pageWidth = doc.page.width - 100;
+      const leftMargin = 50;
 
-      // Header
-      doc.rect(0, 0, doc.page.width, 80).fill(colors.darkGreen);
+      // ========== PAGE 1 ==========
+
+      // Elegant header
+      doc.rect(0, 0, doc.page.width, 100).fill(colors.darkGreen);
       
       doc.fillColor('white')
-         .fontSize(24)
+         .fontSize(28)
          .font('Helvetica-Bold')
-         .text(userData.homeCourse?.toUpperCase() || 'COURSE STRATEGY', 40, 25);
+         .text(userData.homeCourse?.toUpperCase() || 'COURSE STRATEGY', leftMargin, 30);
       
       doc.fontSize(12)
          .font('Helvetica')
-         .text(`${userData.name} • ${userData.handicap} Handicap • ${new Date().toLocaleDateString()}`, 40, 52);
+         .fillColor('rgba(255,255,255,0.8)')
+         .text(`${userData.name} • ${userData.handicap} Handicap • ${new Date().toLocaleDateString()}`, leftMargin, 65);
 
-      // Key Insight
+      let yPos = 130;
+
+      // Key Insight - prominent box
       if (analysis.summary?.keyInsight) {
+        doc.rect(leftMargin, yPos, pageWidth, 60)
+           .fill(colors.lightGray);
+        
         doc.fillColor(colors.darkGreen)
-           .fontSize(11)
+           .fontSize(9)
            .font('Helvetica-Bold')
-           .text('KEY INSIGHT', 40, 100);
+           .text('KEY INSIGHT', leftMargin + 15, yPos + 12);
         
         doc.fillColor(colors.gray)
-           .fontSize(10)
+           .fontSize(11)
            .font('Helvetica')
-           .text(analysis.summary.keyInsight, 40, 115, { width: pageWidth });
+           .text(analysis.summary.keyInsight, leftMargin + 15, yPos + 28, { 
+             width: pageWidth - 30,
+             lineGap: 2
+           });
+        
+        yPos += 80;
       }
 
-      let yPos = 145;
-
-      // Traffic Light Legend
+      // Traffic Light System - horizontal layout
       doc.fillColor(colors.darkGreen)
-         .fontSize(11)
+         .fontSize(12)
          .font('Helvetica-Bold')
-         .text('TEE SHOT STRATEGY', 40, yPos);
+         .text('TEE SHOT STRATEGY', leftMargin, yPos);
       
-      yPos += 18;
+      yPos += 25;
 
-      // Legend items
-      const legendItems = [
-        { color: colors.green, label: 'Driver OK' },
-        { color: colors.yellow, label: 'Conditional' },
-        { color: colors.red, label: '3-Hybrid Only' }
+      // Helper to get holes from either format
+      const getHoles = (lightData) => {
+        if (!lightData) return null;
+        if (lightData.holes) {
+          return Array.isArray(lightData.holes) ? lightData.holes.join(', ') : lightData.holes;
+        }
+        return Array.isArray(lightData) ? lightData.join(', ') : lightData;
+      };
+
+      const getStrategy = (lightData) => {
+        return lightData?.strategy || null;
+      };
+
+      const hasLightData = (lightData) => {
+        if (!lightData) return false;
+        if (lightData.holes) return lightData.holes.length > 0;
+        return Array.isArray(lightData) ? lightData.length > 0 : !!lightData;
+      };
+
+      // Three column layout for traffic lights
+      const colWidth = (pageWidth - 20) / 3;
+      const lights = [
+        { data: analysis.courseStrategy?.greenLightHoles, color: colors.green, label: 'GREEN LIGHT', subtitle: 'Attack' },
+        { data: analysis.courseStrategy?.yellowLightHoles, color: colors.yellow, label: 'YELLOW LIGHT', subtitle: 'Conditional' },
+        { data: analysis.courseStrategy?.redLightHoles, color: colors.red, label: 'RED LIGHT', subtitle: 'Play Safe' }
       ];
 
-      let xPos = 40;
-      legendItems.forEach(item => {
-        doc.circle(xPos + 5, yPos + 5, 5).fill(item.color);
+      lights.forEach((light, i) => {
+        if (!hasLightData(light.data)) return;
+        
+        const x = leftMargin + (i * (colWidth + 10));
+        
+        // Card background
+        doc.rect(x, yPos, colWidth, 100)
+           .fill(colors.lightGray);
+        
+        // Color accent bar
+        doc.rect(x, yPos, colWidth, 4).fill(light.color);
+        
+        // Label
+        doc.fillColor(colors.darkGreen)
+           .fontSize(8)
+           .font('Helvetica-Bold')
+           .text(light.label, x + 10, yPos + 14);
+        
         doc.fillColor(colors.gray)
-           .fontSize(9)
+           .fontSize(7)
            .font('Helvetica')
-           .text(item.label, xPos + 15, yPos + 1);
-        xPos += 100;
+           .text(light.subtitle, x + 10, yPos + 25);
+        
+        // Holes
+        const holes = getHoles(light.data);
+        if (holes) {
+          doc.fillColor(colors.darkGreen)
+             .fontSize(9)
+             .font('Helvetica-Bold')
+             .text(holes, x + 10, yPos + 42, { width: colWidth - 20 });
+        }
+        
+        // Strategy (if exists)
+        const strategy = getStrategy(light.data);
+        if (strategy) {
+          doc.fillColor(colors.gray)
+             .fontSize(7)
+             .font('Helvetica')
+             .text(strategy, x + 10, yPos + 70, { width: colWidth - 20, lineGap: 1 });
+        }
       });
 
-      yPos += 30;
+      yPos += 120;
 
-      // Course Strategy Section
-      if (analysis.courseStrategy) {
-        // Red Light Holes
-        if (analysis.courseStrategy.redLightHoles?.length > 0) {
-          doc.circle(45, yPos + 5, 5).fill(colors.red);
-          doc.fillColor(colors.darkGreen)
-             .fontSize(10)
-             .font('Helvetica-Bold')
-             .text('RED LIGHT — Play Safe', 55, yPos);
-          
-          yPos += 15;
-          const redText = Array.isArray(analysis.courseStrategy.redLightHoles) 
-            ? analysis.courseStrategy.redLightHoles.join(', ')
-            : analysis.courseStrategy.redLightHoles;
-          
-          doc.fillColor(colors.gray)
-             .fontSize(9)
-             .font('Helvetica')
-             .text(redText, 55, yPos, { width: pageWidth - 20 });
-          
-          yPos += doc.heightOfString(redText, { width: pageWidth - 20 }) + 15;
-        }
-
-        // Yellow Light Holes
-        if (analysis.courseStrategy.yellowLightHoles?.length > 0) {
-          doc.circle(45, yPos + 5, 5).fill(colors.yellow);
-          doc.fillColor(colors.darkGreen)
-             .fontSize(10)
-             .font('Helvetica-Bold')
-             .text('YELLOW LIGHT — Conditional', 55, yPos);
-          
-          yPos += 15;
-          const yellowText = Array.isArray(analysis.courseStrategy.yellowLightHoles)
-            ? analysis.courseStrategy.yellowLightHoles.join(', ')
-            : analysis.courseStrategy.yellowLightHoles;
-          
-          doc.fillColor(colors.gray)
-             .fontSize(9)
-             .font('Helvetica')
-             .text(yellowText, 55, yPos, { width: pageWidth - 20 });
-          
-          yPos += doc.heightOfString(yellowText, { width: pageWidth - 20 }) + 15;
-        }
-
-        // Green Light Holes
-        if (analysis.courseStrategy.greenLightHoles?.length > 0) {
-          doc.circle(45, yPos + 5, 5).fill(colors.green);
-          doc.fillColor(colors.darkGreen)
-             .fontSize(10)
-             .font('Helvetica-Bold')
-             .text('GREEN LIGHT — Attack', 55, yPos);
-          
-          yPos += 15;
-          const greenText = Array.isArray(analysis.courseStrategy.greenLightHoles)
-            ? analysis.courseStrategy.greenLightHoles.join(', ')
-            : analysis.courseStrategy.greenLightHoles;
-          
-          doc.fillColor(colors.gray)
-             .fontSize(9)
-             .font('Helvetica')
-             .text(greenText, 55, yPos, { width: pageWidth - 20 });
-          
-          yPos += doc.heightOfString(greenText, { width: pageWidth - 20 }) + 20;
-        }
-      }
-
-      // Trouble Holes Detail
+      // Trouble Holes - clean cards
       if (analysis.troubleHoles?.length > 0) {
         doc.fillColor(colors.darkGreen)
-           .fontSize(11)
+           .fontSize(12)
            .font('Helvetica-Bold')
-           .text('TROUBLE HOLES — STRATEGIES', 40, yPos);
+           .text('TROUBLE HOLES', leftMargin, yPos);
         
-        yPos += 18;
+        yPos += 25;
 
         analysis.troubleHoles.slice(0, 3).forEach((hole, i) => {
-          doc.rect(40, yPos, pageWidth, 3).fill(colors.red);
-          yPos += 8;
+          // Card
+          doc.rect(leftMargin, yPos, pageWidth, 75)
+             .fill(colors.lightGray);
           
+          // Red accent
+          doc.rect(leftMargin, yPos, 4, 75).fill(colors.red);
+          
+          // Hole type
           doc.fillColor(colors.darkGreen)
-             .fontSize(10)
+             .fontSize(11)
              .font('Helvetica-Bold')
-             .text(hole.type, 40, yPos);
+             .text(hole.type, leftMargin + 15, yPos + 12);
           
-          yPos += 14;
+          // Target score badge
+          if (hole.acceptableScore) {
+            doc.fillColor(colors.lightGreen)
+               .fontSize(8)
+               .font('Helvetica-Bold')
+               .text(`Target: ${hole.acceptableScore}`, pageWidth - 30, yPos + 12, { align: 'right' });
+          }
           
+          // Strategy
           doc.fillColor(colors.gray)
              .fontSize(9)
              .font('Helvetica')
-             .text(`Strategy: ${hole.strategy}`, 40, yPos, { width: pageWidth });
+             .text(hole.strategy, leftMargin + 15, yPos + 32, { width: pageWidth - 40, lineGap: 2 });
           
-          yPos += doc.heightOfString(`Strategy: ${hole.strategy}`, { width: pageWidth }) + 5;
-          
+          // Club recommendation
           if (hole.clubRecommendation) {
-            doc.text(`Club: ${hole.clubRecommendation}`, 40, yPos);
-            yPos += 12;
+            doc.fillColor(colors.mediumGreen)
+               .fontSize(8)
+               .font('Helvetica-Bold')
+               .text(`Club: ${hole.clubRecommendation}`, leftMargin + 15, yPos + 58);
           }
           
-          doc.fillColor(colors.lightGreen)
-             .text(`Target: ${hole.acceptableScore}`, 40, yPos);
-          
-          yPos += 20;
+          yPos += 85;
         });
       }
 
-      // Check if we need a new page
-      if (yPos > 600) {
-        doc.addPage();
-        yPos = 40;
-      }
+      // ========== PAGE 2 ==========
+      doc.addPage();
+      yPos = 50;
 
-      // Target Stats
+      // Target Stats - large, clean boxes
       if (analysis.targetStats) {
         doc.fillColor(colors.darkGreen)
-           .fontSize(11)
+           .fontSize(12)
            .font('Helvetica-Bold')
-           .text('TARGET STATS', 40, yPos);
+           .text('YOUR TARGET STATS', leftMargin, yPos);
         
-        yPos += 20;
+        yPos += 30;
 
         const stats = [
-          { label: 'Fairways', value: analysis.targetStats.fairwaysHit },
-          { label: 'Penalties', value: analysis.targetStats.penaltiesPerRound },
+          { label: 'FAIRWAYS', value: analysis.targetStats.fairwaysHit },
+          { label: 'PENALTIES', value: analysis.targetStats.penaltiesPerRound },
           { label: 'GIR', value: analysis.targetStats.gir },
-          { label: 'Up & Down', value: analysis.targetStats.upAndDown }
+          { label: 'UP & DOWN', value: analysis.targetStats.upAndDown }
         ].filter(s => s.value);
 
-        const statWidth = pageWidth / stats.length;
+        const statWidth = (pageWidth - 30) / stats.length;
         stats.forEach((stat, i) => {
-          const x = 40 + (i * statWidth);
+          const x = leftMargin + (i * (statWidth + 10));
           
-          doc.rect(x, yPos, statWidth - 10, 50)
+          doc.rect(x, yPos, statWidth, 70)
              .fill(colors.lightGray);
           
           doc.fillColor(colors.lightGreen)
-             .fontSize(18)
+             .fontSize(28)
              .font('Helvetica-Bold')
-             .text(stat.value, x, yPos + 10, { width: statWidth - 10, align: 'center' });
+             .text(stat.value, x, yPos + 12, { width: statWidth, align: 'center' });
           
           doc.fillColor(colors.gray)
              .fontSize(8)
              .font('Helvetica')
-             .text(stat.label.toUpperCase(), x, yPos + 35, { width: statWidth - 10, align: 'center' });
+             .text(stat.label, x, yPos + 50, { width: statWidth, align: 'center' });
         });
 
-        yPos += 70;
+        yPos += 100;
       }
 
-      // Mental Mantras
-      if (analysis.mentalGame?.mantras?.length > 0) {
+      // Mental Game Section
+      if (analysis.mentalGame) {
         doc.fillColor(colors.darkGreen)
-           .fontSize(11)
+           .fontSize(12)
            .font('Helvetica-Bold')
-           .text('MENTAL MANTRAS', 40, yPos);
+           .text('MENTAL GAME', leftMargin, yPos);
         
-        yPos += 18;
+        yPos += 30;
 
-        analysis.mentalGame.mantras.slice(0, 3).forEach((mantra, i) => {
-          doc.rect(40, yPos, 3, 25).fill(colors.lightGreen);
+        // Pre-shot thought
+        if (analysis.mentalGame.preShot) {
+          doc.rect(leftMargin, yPos, pageWidth, 50)
+             .fill(colors.lightGray);
+          doc.rect(leftMargin, yPos, 4, 50).fill(colors.lightGreen);
+          
+          doc.fillColor(colors.mediumGreen)
+             .fontSize(8)
+             .font('Helvetica-Bold')
+             .text('PRE-SHOT THOUGHT', leftMargin + 15, yPos + 10);
           
           doc.fillColor(colors.gray)
              .fontSize(10)
-             .font('Helvetica-Oblique')
-             .text(`"${mantra}"`, 50, yPos + 5, { width: pageWidth - 20 });
+             .font('Helvetica')
+             .text(analysis.mentalGame.preShot, leftMargin + 15, yPos + 28, { width: pageWidth - 40 });
           
-          yPos += 30;
-        });
+          yPos += 65;
+        }
+
+        // Recovery thought
+        if (analysis.mentalGame.recovery) {
+          doc.rect(leftMargin, yPos, pageWidth, 50)
+             .fill(colors.lightGray);
+          doc.rect(leftMargin, yPos, 4, 50).fill(colors.yellow);
+          
+          doc.fillColor(colors.mediumGreen)
+             .fontSize(8)
+             .font('Helvetica-Bold')
+             .text('AFTER A BAD SHOT', leftMargin + 15, yPos + 10);
+          
+          doc.fillColor(colors.gray)
+             .fontSize(10)
+             .font('Helvetica')
+             .text(analysis.mentalGame.recovery, leftMargin + 15, yPos + 28, { width: pageWidth - 40 });
+          
+          yPos += 65;
+        }
+
+        // Mantras
+        if (analysis.mentalGame.mantras?.length > 0) {
+          doc.fillColor(colors.darkGreen)
+             .fontSize(10)
+             .font('Helvetica-Bold')
+             .text('MANTRAS TO REMEMBER', leftMargin, yPos);
+          
+          yPos += 20;
+
+          analysis.mentalGame.mantras.slice(0, 4).forEach((mantra, i) => {
+            doc.circle(leftMargin + 8, yPos + 6, 4).fill(colors.lightGreen);
+            
+            doc.fillColor(colors.gray)
+               .fontSize(10)
+               .font('Helvetica-Oblique')
+               .text(`"${mantra}"`, leftMargin + 25, yPos, { width: pageWidth - 40 });
+            
+            yPos += 28;
+          });
+        }
       }
 
       // Footer
-      const footerY = doc.page.height - 60;
-      doc.rect(0, footerY, doc.page.width, 60).fill(colors.darkGreen);
+      yPos = doc.page.height - 80;
+      doc.rect(0, yPos, doc.page.width, 80).fill(colors.darkGreen);
       
       doc.fillColor('white')
-         .fontSize(10)
+         .fontSize(9)
          .font('Helvetica-Bold')
-         .text('MANTRA:', 40, footerY + 15);
+         .text('ROUND FOCUS:', leftMargin, yPos + 20);
       
-      const preShot = analysis.mentalGame?.preShot || 'Fairway finder on trouble holes. Swing free, not hard. Trust the short game.';
+      const roundFocus = analysis.courseStrategy?.overallApproach || 
+                         analysis.mentalGame?.preShot || 
+                         'Play smart, trust your process, commit to every shot.';
       doc.font('Helvetica')
-         .text(preShot, 95, footerY + 15, { width: pageWidth - 60 });
+         .fontSize(10)
+         .text(roundFocus, leftMargin, yPos + 35, { width: pageWidth });
       
       doc.fontSize(8)
-         .text('Generated by Fairway Strategy • fairwaystrategy.com', 40, footerY + 40);
+         .fillColor('rgba(255,255,255,0.6)')
+         .text('Generated by Golf Strategy • golfstrategy.app', leftMargin, yPos + 58);
 
       doc.end();
 
