@@ -244,7 +244,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
       <div className="progress-card">
         <div className="progress-header">
           <div className="progress-title">
-            <span className="progress-icon"></span>
+            <span className="progress-icon">🎯</span>
             <h2>Stroke Index</h2>
             {user?.ghin_number && (
               <span className="ghin-badge">GHIN #{user.ghin_number}</span>
@@ -362,7 +362,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
               </div>
             ) : (
               <div className="empty-state">
-                <div className="empty-icon"></div>
+                <div className="empty-icon">📊</div>
                 <h3>No analyses yet</h3>
                 <p>Upload your scorecards to get your personalized strategy</p>
                 <button className="primary-btn" onClick={onNewAnalysis}>
@@ -802,7 +802,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         .progress-title {
           display: flex;
           align-items: center;
-          gap: 0px;
+          gap: 10px;
         }
 
         .progress-icon {

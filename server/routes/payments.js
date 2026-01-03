@@ -65,6 +65,9 @@ router.post('/create-checkout', authenticateToken, async (req, res) => {
     }
 
     const isSubscription = priceType === 'monthly' || priceType === 'yearly';
+    
+    // Log the URLs being used (helps debug redirect issues)
+    console.log('Checkout URLs - FRONTEND_URL:', process.env.FRONTEND_URL);
 
     const sessionConfig = {
       customer_email: user.email,

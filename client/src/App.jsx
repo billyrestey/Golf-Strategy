@@ -259,8 +259,10 @@ export default function App() {
     setError(null);
     setAnalyzeStep(0);
     
-    // Determine if this is a preview (not logged in) or full analysis
-    const isPreview = !isAuthenticated;
+    // Determine if this is a preview or full analysis
+    // Preview if: not logged in OR logged in but no credits/subscription
+    const hasAccess = isAuthenticated && (user?.subscriptionStatus === 'pro' || (user?.credits && user.credits > 0));
+    const isPreview = !hasAccess;
     
     try {
       // Create FormData for file upload
@@ -601,7 +603,7 @@ export default function App() {
           type="text"
           value={formData.name}
           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-          placeholder="e.g., Bobby Berger"
+          placeholder="e.g., Billy"
         />
       </div>
       
@@ -613,7 +615,7 @@ export default function App() {
             step="0.1"
             value={formData.handicap}
             onChange={(e) => setFormData(prev => ({ ...prev, handicap: e.target.value }))}
-            placeholder="e.g., 15"
+            placeholder="e.g., 14.7"
           />
         </div>
         <div className="form-group">
@@ -623,7 +625,7 @@ export default function App() {
             step="0.1"
             value={formData.targetHandicap}
             onChange={(e) => setFormData(prev => ({ ...prev, targetHandicap: e.target.value }))}
-            placeholder="e.g., 10"
+            placeholder="e.g., 10.0"
           />
         </div>
       </div>
@@ -749,7 +751,7 @@ export default function App() {
           </div>
           
           <p className="ghin-tip">
-            💡 <strong>Tip:</strong> Hole-by-hole scorecards work best!
+            💡 <strong>Tip:</strong> Take screenshots from the GHIN app's "Score History" screen - they contain all the data we need!
           </p>
         </div>
       ) : (
@@ -916,13 +918,25 @@ export default function App() {
                 </ul>
                 <button 
                   className="unlock-btn"
-                  onClick={() => { setAuthMode('register'); setShowPricingFlow(true); setShowAuthModal(true); }}
+                  onClick={() => {
+                    if (isAuthenticated) {
+                      // User is logged in but has no credits - show pricing
+                      setShowPricingModal(true);
+                    } else {
+                      // User not logged in - show auth flow with pricing
+                      setAuthMode('register');
+                      setShowPricingFlow(true);
+                      setShowAuthModal(true);
+                    }
+                  }}
                 >
                   Get Full Strategy
                 </button>
-                <p className="unlock-note">
-                  Already have an account? <button className="link-btn" onClick={() => { setAuthMode('login'); setShowPricingFlow(true); setShowAuthModal(true); }}>Sign in</button>
-                </p>
+                {!isAuthenticated && (
+                  <p className="unlock-note">
+                    Already have an account? <button className="link-btn" onClick={() => { setAuthMode('login'); setShowPricingFlow(true); setShowAuthModal(true); }}>Sign in</button>
+                  </p>
+                )}
               </div>
             </div>
             
@@ -1835,12 +1849,10 @@ export default function App() {
           background: rgba(124, 185, 124, 0.1);
           border-left: 3px solid #7cb97c;
           padding: 12px 16px;
-          text-align: center;
           border-radius: 0 8px 8px 0;
           font-size: 13px;
           color: rgba(240, 244, 232, 0.8);
           margin-bottom: 20px;
-          margin-top: 20px;
         }
 
         .ghin-tip strong {
@@ -4036,8 +4048,8 @@ export default function App() {
               </div>
               
               <header className="tool-header">
-                <div className="logo">GOLF STRATEGY</div>
-                <h1 className="tool-title">Analyze Your Game</h1>
+                <div className="logo">CREATE A PLAN</div>
+                <h1 className="tool-title">Improve Your Game</h1>
               </header>
             </>
           )}

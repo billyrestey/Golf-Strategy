@@ -129,7 +129,7 @@ router.post('/register', async (req, res) => {
         id: userId,
         email,
         name,
-        credits: 1,
+        credits: 0,
         subscriptionStatus: 'free'
       }
     });
