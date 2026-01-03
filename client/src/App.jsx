@@ -662,21 +662,17 @@ export default function App() {
       {/* GHIN Connection Option */}
       {!ghinConnected ? (
         <div className="ghin-connect-section">
-          <button 
-            className="ghin-connect-btn"
-            onClick={() => setShowGhinModal(true)}
-          >
+          <div className="ghin-coming-soon">
             <span className="ghin-icon">⛳</span>
             <div className="ghin-btn-text">
-              <strong>Connect GHIN Account</strong>
-              <span>Auto-import your recent rounds with hole-by-hole data</span>
+              <strong>GHIN Auto-Import</strong>
+              <span>Coming soon! For now, upload scorecard screenshots below.</span>
             </div>
-            <span className="ghin-arrow">→</span>
-          </button>
-          
-          <div className="or-divider">
-            <span>or upload manually</span>
           </div>
+          
+          <p className="ghin-tip">
+            💡 <strong>Tip:</strong> Take screenshots from the GHIN app's "Score History" screen - they contain all the data we need!
+          </p>
         </div>
       ) : (
         <div className="ghin-connected-section">
@@ -1727,6 +1723,48 @@ export default function App() {
         /* GHIN Connect Styles */
         .ghin-connect-section {
           margin-bottom: 24px;
+        }
+
+        .ghin-coming-soon {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 20px 24px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          border-radius: 16px;
+          margin-bottom: 12px;
+        }
+
+        .ghin-coming-soon .ghin-icon {
+          font-size: 28px;
+          opacity: 0.5;
+        }
+
+        .ghin-coming-soon .ghin-btn-text strong {
+          display: block;
+          font-size: 14px;
+          color: rgba(240, 244, 232, 0.5);
+          margin-bottom: 4px;
+        }
+
+        .ghin-coming-soon .ghin-btn-text span {
+          font-size: 13px;
+          color: rgba(240, 244, 232, 0.4);
+        }
+
+        .ghin-tip {
+          background: rgba(124, 185, 124, 0.1);
+          border-left: 3px solid #7cb97c;
+          padding: 12px 16px;
+          border-radius: 0 8px 8px 0;
+          font-size: 13px;
+          color: rgba(240, 244, 232, 0.8);
+          margin-bottom: 20px;
+        }
+
+        .ghin-tip strong {
+          color: #7cb97c;
         }
 
         .ghin-connect-btn {
@@ -3918,8 +3956,8 @@ export default function App() {
               </div>
               
               <header className="tool-header">
-                <div className="logo">ANALYZE YOUR GAME</div>
-                <h1 className="tool-title">Improve Your Scores</h1>
+                <div className="logo">CREATE A PLAN</div>
+                <h1 className="tool-title">Improve Your Game</h1>
               </header>
             </>
           )}

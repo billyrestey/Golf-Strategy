@@ -255,23 +255,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
               : (showPricing ? 'Create an account to unlock your personalized game plan' : 'Start improving your game today')}
           </p>
 
-          {mode === 'register' && (
-            <>
-              <button 
-                className="ghin-signup-btn"
-                onClick={() => setStep('ghin')}
-              >
-                <span className="ghin-icon">⛳</span>
-                <span>Sign up with GHIN</span>
-                <span className="ghin-badge">Recommended</span>
-              </button>
-              
-              <div className="auth-divider">
-                <span>or continue with email</span>
-              </div>
-            </>
-          )}
-
           {error && <div className="auth-error">{error}</div>}
 
           <form onSubmit={handleSubmit}>
