@@ -1840,7 +1840,7 @@ export default function App() {
           font-size: 13px;
           color: rgba(240, 244, 232, 0.8);
           margin-bottom: 20px;
-          margin-top: 10px;
+          margin-top: 20px;
         }
 
         .ghin-tip strong {
