@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-export default function AuthModal({ isOpen, onClose, initialMode = 'login', defaultName = '', showPricing = false }) {
+export default function AuthModal({ isOpen, onClose, initialMode = 'login', defaultName = '', showPricing = false, requirePayment = false, onUnlock = null }) {
   const [mode, setMode] = useState(initialMode);
   const [step, setStep] = useState('auth'); // 'auth' or 'pricing'
   const [email, setEmail] = useState('');
@@ -16,7 +16,20 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
   const [trialCode, setTrialCode] = useState('');
   const [trialSuccess, setTrialSuccess] = useState(false);
 
-  const { login, register, token, isAuthenticated } = useAuth();
+  const { login, register, token, isAuthenticated, user } = useAuth();
+
+  // Handle close - prevent if payment is required and user has no credits
+  const handleClose = () => {
+    if (requirePayment && step === 'pricing') {
+      // Check if user has credits or subscription
+      const canAccess = user?.subscriptionStatus === 'pro' || (user?.credits && user.credits > 0);
+      if (!canAccess) {
+        // Don't allow closing - user must pay
+        return;
+      }
+    }
+    onClose();
+  };
 
   const handleTrialCode = async () => {
     if (!trialCode.trim()) return;
@@ -38,6 +51,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
       if (data.success) {
         setTrialSuccess(true);
         setTimeout(() => {
+          if (onUnlock) onUnlock();
           onClose();
           window.location.reload(); // Refresh to update user state
         }, 1500);
@@ -135,9 +149,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
   // Auth step (signup/login)
   if (step === 'auth') {
     return (
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay" onClick={handleClose}>
         <div className="modal-content auth-modal" onClick={e => e.stopPropagation()}>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={handleClose}>×</button>
           
           <h2>{mode === 'login' ? 'Welcome Back' : (showPricing ? 'Get Your Full Strategy' : 'Create Account')}</h2>
           <p className="modal-subtitle">
@@ -212,9 +226,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
 
   // Pricing step
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-content pricing-modal" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>×</button>
+        <button className="modal-close" onClick={handleClose}>×</button>
         
         <h2>🎯 Unlock Your Strategy</h2>
         <p className="modal-subtitle">

@@ -123,12 +123,12 @@ export function generateStrategyPDF(analysis, userData) {
         doc.fillColor(colors.darkGreen)
            .fontSize(8)
            .font('Helvetica-Bold')
-           .text(light.label, x + 10, yPos + 14);
+           .text(light.label, x + 10, yPos + 14, { width: colWidth - 20, lineBreak: false });
         
         doc.fillColor(colors.gray)
            .fontSize(7)
            .font('Helvetica')
-           .text(light.subtitle, x + 10, yPos + 25);
+           .text(light.subtitle, x + 10, yPos + 25, { width: colWidth - 20, lineBreak: false });
         
         // Holes
         const holes = getHoles(light.data);
@@ -136,27 +136,27 @@ export function generateStrategyPDF(analysis, userData) {
           doc.fillColor(colors.darkGreen)
              .fontSize(9)
              .font('Helvetica-Bold')
-             .text(holes, x + 10, yPos + 42, { width: colWidth - 20 });
+             .text(holes, x + 10, yPos + 42, { width: colWidth - 20, height: 25, ellipsis: true });
         }
         
-        // Strategy (if exists)
+        // Strategy (if exists) - truncate to fit
         const strategy = getStrategy(light.data);
         if (strategy) {
           doc.fillColor(colors.gray)
              .fontSize(7)
              .font('Helvetica')
-             .text(strategy, x + 10, yPos + 70, { width: colWidth - 20, lineGap: 1 });
+             .text(strategy.substring(0, 120) + (strategy.length > 120 ? '...' : ''), x + 10, yPos + 70, { width: colWidth - 20, height: 28 });
         }
       });
 
       yPos += 120;
 
-      // Trouble Holes - clean cards
+      // Trouble Holes - clean cards (limit to 3, truncate text)
       if (analysis.troubleHoles?.length > 0) {
         doc.fillColor(colors.darkGreen)
            .fontSize(12)
            .font('Helvetica-Bold')
-           .text('TROUBLE HOLES', leftMargin, yPos);
+           .text('TROUBLE HOLES', leftMargin, yPos, { lineBreak: false });
         
         yPos += 25;
 
@@ -172,28 +172,29 @@ export function generateStrategyPDF(analysis, userData) {
           doc.fillColor(colors.darkGreen)
              .fontSize(11)
              .font('Helvetica-Bold')
-             .text(hole.type, leftMargin + 15, yPos + 12);
+             .text(hole.type, leftMargin + 15, yPos + 12, { width: pageWidth - 100, lineBreak: false });
           
           // Target score badge
           if (hole.acceptableScore) {
             doc.fillColor(colors.lightGreen)
                .fontSize(8)
                .font('Helvetica-Bold')
-               .text(`Target: ${hole.acceptableScore}`, pageWidth - 30, yPos + 12, { align: 'right' });
+               .text(`Target: ${hole.acceptableScore}`, leftMargin + pageWidth - 80, yPos + 12, { width: 70, lineBreak: false });
           }
           
-          // Strategy
+          // Strategy - truncate to fit in card
+          const strategyText = hole.strategy?.substring(0, 150) + (hole.strategy?.length > 150 ? '...' : '');
           doc.fillColor(colors.gray)
              .fontSize(9)
              .font('Helvetica')
-             .text(hole.strategy, leftMargin + 15, yPos + 32, { width: pageWidth - 40, lineGap: 2 });
+             .text(strategyText || '', leftMargin + 15, yPos + 32, { width: pageWidth - 40, height: 22 });
           
           // Club recommendation
           if (hole.clubRecommendation) {
             doc.fillColor(colors.mediumGreen)
                .fontSize(8)
                .font('Helvetica-Bold')
-               .text(`Club: ${hole.clubRecommendation}`, leftMargin + 15, yPos + 58);
+               .text(`Club: ${hole.clubRecommendation}`, leftMargin + 15, yPos + 58, { lineBreak: false });
           }
           
           yPos += 85;
@@ -209,7 +210,7 @@ export function generateStrategyPDF(analysis, userData) {
         doc.fillColor(colors.darkGreen)
            .fontSize(12)
            .font('Helvetica-Bold')
-           .text('YOUR TARGET STATS', leftMargin, yPos);
+           .text('YOUR TARGET STATS', leftMargin, yPos, { lineBreak: false });
         
         yPos += 30;
 
@@ -220,7 +221,7 @@ export function generateStrategyPDF(analysis, userData) {
           { label: 'UP & DOWN', value: analysis.targetStats.upAndDown }
         ].filter(s => s.value);
 
-        const statWidth = (pageWidth - 30) / stats.length;
+        const statWidth = (pageWidth - 30) / Math.max(stats.length, 1);
         stats.forEach((stat, i) => {
           const x = leftMargin + (i * (statWidth + 10));
           
@@ -230,12 +231,12 @@ export function generateStrategyPDF(analysis, userData) {
           doc.fillColor(colors.lightGreen)
              .fontSize(28)
              .font('Helvetica-Bold')
-             .text(stat.value, x, yPos + 12, { width: statWidth, align: 'center' });
+             .text(stat.value || '', x, yPos + 12, { width: statWidth, align: 'center', lineBreak: false });
           
           doc.fillColor(colors.gray)
              .fontSize(8)
              .font('Helvetica')
-             .text(stat.label, x, yPos + 50, { width: statWidth, align: 'center' });
+             .text(stat.label, x, yPos + 50, { width: statWidth, align: 'center', lineBreak: false });
         });
 
         yPos += 100;
@@ -246,7 +247,7 @@ export function generateStrategyPDF(analysis, userData) {
         doc.fillColor(colors.darkGreen)
            .fontSize(12)
            .font('Helvetica-Bold')
-           .text('MENTAL GAME', leftMargin, yPos);
+           .text('MENTAL GAME', leftMargin, yPos, { lineBreak: false });
         
         yPos += 30;
 
@@ -259,12 +260,13 @@ export function generateStrategyPDF(analysis, userData) {
           doc.fillColor(colors.mediumGreen)
              .fontSize(8)
              .font('Helvetica-Bold')
-             .text('PRE-SHOT THOUGHT', leftMargin + 15, yPos + 10);
+             .text('PRE-SHOT THOUGHT', leftMargin + 15, yPos + 10, { lineBreak: false });
           
+          const preShotText = analysis.mentalGame.preShot?.substring(0, 100) || '';
           doc.fillColor(colors.gray)
              .fontSize(10)
              .font('Helvetica')
-             .text(analysis.mentalGame.preShot, leftMargin + 15, yPos + 28, { width: pageWidth - 40 });
+             .text(preShotText, leftMargin + 15, yPos + 28, { width: pageWidth - 40, height: 18 });
           
           yPos += 65;
         }
@@ -278,57 +280,59 @@ export function generateStrategyPDF(analysis, userData) {
           doc.fillColor(colors.mediumGreen)
              .fontSize(8)
              .font('Helvetica-Bold')
-             .text('AFTER A BAD SHOT', leftMargin + 15, yPos + 10);
+             .text('AFTER A BAD SHOT', leftMargin + 15, yPos + 10, { lineBreak: false });
           
+          const recoveryText = analysis.mentalGame.recovery?.substring(0, 100) || '';
           doc.fillColor(colors.gray)
              .fontSize(10)
              .font('Helvetica')
-             .text(analysis.mentalGame.recovery, leftMargin + 15, yPos + 28, { width: pageWidth - 40 });
+             .text(recoveryText, leftMargin + 15, yPos + 28, { width: pageWidth - 40, height: 18 });
           
           yPos += 65;
         }
 
-        // Mantras
+        // Mantras - limit to 3 to stay on page
         if (analysis.mentalGame.mantras?.length > 0) {
           doc.fillColor(colors.darkGreen)
              .fontSize(10)
              .font('Helvetica-Bold')
-             .text('MANTRAS TO REMEMBER', leftMargin, yPos);
+             .text('MANTRAS TO REMEMBER', leftMargin, yPos, { lineBreak: false });
           
           yPos += 20;
 
-          analysis.mentalGame.mantras.slice(0, 4).forEach((mantra, i) => {
+          analysis.mentalGame.mantras.slice(0, 3).forEach((mantra, i) => {
             doc.circle(leftMargin + 8, yPos + 6, 4).fill(colors.lightGreen);
             
+            const mantraText = mantra?.substring(0, 60) || '';
             doc.fillColor(colors.gray)
                .fontSize(10)
                .font('Helvetica-Oblique')
-               .text(`"${mantra}"`, leftMargin + 25, yPos, { width: pageWidth - 40 });
+               .text(`"${mantraText}"`, leftMargin + 25, yPos, { width: pageWidth - 40, lineBreak: false });
             
             yPos += 28;
           });
         }
       }
 
-      // Footer
-      yPos = doc.page.height - 80;
-      doc.rect(0, yPos, doc.page.width, 80).fill(colors.darkGreen);
+      // Footer - fixed position at bottom of page 2
+      const footerY = doc.page.height - 80;
+      doc.rect(0, footerY, doc.page.width, 80).fill(colors.darkGreen);
       
       doc.fillColor('white')
          .fontSize(9)
          .font('Helvetica-Bold')
-         .text('ROUND FOCUS:', leftMargin, yPos + 20);
+         .text('ROUND FOCUS:', leftMargin, footerY + 20, { lineBreak: false });
       
-      const roundFocus = analysis.courseStrategy?.overallApproach || 
+      const roundFocus = (analysis.courseStrategy?.overallApproach || 
                          analysis.mentalGame?.preShot || 
-                         'Play smart, trust your process, commit to every shot.';
+                         'Play smart, trust your process, commit to every shot.').substring(0, 120);
       doc.font('Helvetica')
          .fontSize(10)
-         .text(roundFocus, leftMargin, yPos + 35, { width: pageWidth });
+         .text(roundFocus, leftMargin, footerY + 35, { width: pageWidth, height: 18 });
       
       doc.fontSize(8)
          .fillColor('rgba(255,255,255,0.6)')
-         .text('Generated by Golf Strategy • golfstrategy.app', leftMargin, yPos + 58);
+         .text('Generated by Golf Strategy • golfstrategy.app', leftMargin, footerY + 58, { lineBreak: false });
 
       doc.end();
 
@@ -424,28 +428,30 @@ export function generatePracticePlanPDF(analysis, userData) {
             doc.fillColor(colors.darkGreen)
                .fontSize(11)
                .font('Helvetica-Bold')
-               .text(drill.name, leftMargin + 15, yPos + 10, { width: pageWidth - 100 });
+               .text(drill.name || '', leftMargin + 15, yPos + 10, { width: pageWidth - 100, lineBreak: false });
             
             // Reps badge
             if (drill.reps) {
               doc.fillColor(colors.lightGreen)
                  .fontSize(9)
                  .font('Helvetica-Bold')
-                 .text(drill.reps, leftMargin + pageWidth - 80, yPos + 10, { width: 70, align: 'right' });
+                 .text(drill.reps, leftMargin + pageWidth - 80, yPos + 10, { width: 70, align: 'right', lineBreak: false });
             }
             
-            // Description
+            // Description - truncate
+            const descText = drill.description?.substring(0, 100) || '';
             doc.fillColor(colors.gray)
                .fontSize(9)
                .font('Helvetica')
-               .text(drill.description, leftMargin + 15, yPos + 28, { width: pageWidth - 40 });
+               .text(descText, leftMargin + 15, yPos + 28, { width: pageWidth - 40, height: 16 });
             
-            // Why (if exists)
+            // Why (if exists) - truncate
             if (drill.why) {
+              const whyText = drill.why?.substring(0, 80) || '';
               doc.fillColor(colors.mediumGreen)
                  .fontSize(8)
                  .font('Helvetica-Oblique')
-                 .text(`Why: ${drill.why}`, leftMargin + 15, yPos + 48, { width: pageWidth - 40 });
+                 .text(`Why: ${whyText}`, leftMargin + 15, yPos + 48, { width: pageWidth - 40, lineBreak: false });
             }
             
             yPos += 75;
@@ -496,25 +502,27 @@ export function generatePracticePlanPDF(analysis, userData) {
             doc.fillColor(colors.darkGreen)
                .fontSize(11)
                .font('Helvetica-Bold')
-               .text(drill.name, leftMargin + 15, yPos + 10, { width: pageWidth - 100 });
+               .text(drill.name || '', leftMargin + 15, yPos + 10, { width: pageWidth - 100, lineBreak: false });
             
             if (drill.reps) {
               doc.fillColor(colors.lightGreen)
                  .fontSize(9)
                  .font('Helvetica-Bold')
-                 .text(drill.reps, leftMargin + pageWidth - 80, yPos + 10, { width: 70, align: 'right' });
+                 .text(drill.reps, leftMargin + pageWidth - 80, yPos + 10, { width: 70, align: 'right', lineBreak: false });
             }
             
+            const descText = drill.description?.substring(0, 100) || '';
             doc.fillColor(colors.gray)
                .fontSize(9)
                .font('Helvetica')
-               .text(drill.description, leftMargin + 15, yPos + 28, { width: pageWidth - 40 });
+               .text(descText, leftMargin + 15, yPos + 28, { width: pageWidth - 40, height: 16 });
             
             if (drill.why) {
+              const whyText = drill.why?.substring(0, 80) || '';
               doc.fillColor(colors.mediumGreen)
                  .fontSize(8)
                  .font('Helvetica-Oblique')
-                 .text(`Why: ${drill.why}`, leftMargin + 15, yPos + 48, { width: pageWidth - 40 });
+                 .text(`Why: ${whyText}`, leftMargin + 15, yPos + 48, { width: pageWidth - 40, lineBreak: false });
             }
             
             yPos += 75;
@@ -531,7 +539,7 @@ export function generatePracticePlanPDF(analysis, userData) {
         doc.fillColor(colors.darkGreen)
            .fontSize(14)
            .font('Helvetica-Bold')
-           .text('PRE-ROUND ROUTINE', leftMargin, yPos);
+           .text('PRE-ROUND ROUTINE', leftMargin, yPos, { lineBreak: false });
         
         yPos += 30;
 
@@ -543,26 +551,27 @@ export function generatePracticePlanPDF(analysis, userData) {
           doc.fillColor('white')
              .fontSize(11)
              .font('Helvetica-Bold')
-             .text((i + 1).toString(), leftMargin + 8, yPos + 3);
+             .text((i + 1).toString(), leftMargin + 8, yPos + 3, { lineBreak: false });
           
-          // Step text
+          // Step text - truncate
+          const stepText = step?.substring(0, 80) || '';
           doc.fillColor(colors.gray)
              .fontSize(10)
              .font('Helvetica')
-             .text(step, leftMargin + 35, yPos + 2, { width: pageWidth - 50 });
+             .text(stepText, leftMargin + 35, yPos + 2, { width: pageWidth - 50, lineBreak: false });
           
           yPos += 35;
         });
       }
 
-      // Footer
+      // Footer - fixed at bottom
       const footerY = doc.page.height - 60;
       doc.rect(0, footerY, doc.page.width, 60).fill(colors.darkGreen);
       
       doc.fillColor('white')
          .fontSize(8)
          .font('Helvetica')
-         .text('Generated by Golf Strategy • golfstrategy.app', leftMargin, footerY + 25);
+         .text('Generated by Golf Strategy • golfstrategy.app', leftMargin, footerY + 25, { lineBreak: false });
 
       doc.end();
 

@@ -196,9 +196,18 @@ export default function App() {
     setView(isAuthenticated ? 'dashboard' : 'landing');
   };
 
-  // Unlock full analysis after signup/login
+  // Unlock full analysis after signup/login - only if user has credits or subscription
   const unlockAnalysis = async () => {
     if (!pendingAnalysis || !isAuthenticated) return;
+    
+    // Check if user can access (has credits or pro subscription)
+    const canAccess = user?.subscriptionStatus === 'pro' || (user?.credits && user.credits > 0);
+    
+    if (!canAccess) {
+      // User logged in but has no credits - show pricing modal
+      setShowPricingModal(true);
+      return;
+    }
     
     try {
       // Save the analysis to user's account
@@ -235,12 +244,19 @@ export default function App() {
     }
   };
 
-  // When user logs in while in preview mode, unlock the analysis
+  // When user logs in while in preview mode, check if they can unlock
   useEffect(() => {
-    if (isAuthenticated && previewMode && pendingAnalysis) {
-      unlockAnalysis();
+    if (isAuthenticated && previewMode && pendingAnalysis && user) {
+      // Only unlock if user has credits or subscription
+      const canAccess = user.subscriptionStatus === 'pro' || (user.credits && user.credits > 0);
+      if (canAccess) {
+        unlockAnalysis();
+      } else {
+        // Show pricing modal - they need to purchase
+        setShowPricingModal(true);
+      }
     }
-  }, [isAuthenticated, previewMode]);
+  }, [isAuthenticated, previewMode, user]);
 
   // Start new analysis from dashboard
   const startNewAnalysis = () => {
@@ -1089,6 +1105,8 @@ export default function App() {
         initialMode={authMode}
         defaultName={formData.name}
         showPricing={showPricingFlow}
+        requirePayment={previewMode && pendingAnalysis !== null}
+        onUnlock={unlockAnalysis}
       />
       
       {/* Pricing Modal */}
