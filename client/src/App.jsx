@@ -601,7 +601,7 @@ export default function App() {
           type="text"
           value={formData.name}
           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-          placeholder="e.g., Billy"
+          placeholder="e.g., Bobby Berger"
         />
       </div>
       
@@ -613,7 +613,7 @@ export default function App() {
             step="0.1"
             value={formData.handicap}
             onChange={(e) => setFormData(prev => ({ ...prev, handicap: e.target.value }))}
-            placeholder="e.g., 14.7"
+            placeholder="e.g., 15"
           />
         </div>
         <div className="form-group">
@@ -623,7 +623,7 @@ export default function App() {
             step="0.1"
             value={formData.targetHandicap}
             onChange={(e) => setFormData(prev => ({ ...prev, targetHandicap: e.target.value }))}
-            placeholder="e.g., 10.0"
+            placeholder="e.g., 10"
           />
         </div>
       </div>
@@ -749,7 +749,7 @@ export default function App() {
           </div>
           
           <p className="ghin-tip">
-            💡 <strong>Tip:</strong> Take screenshots from the GHIN app's "Score History" screen - they contain all the data we need!
+            💡 <strong>Tip:</strong> Hole-by-hole scorecards work best!
           </p>
         </div>
       ) : (
@@ -1835,10 +1835,12 @@ export default function App() {
           background: rgba(124, 185, 124, 0.1);
           border-left: 3px solid #7cb97c;
           padding: 12px 16px;
+          text-align: center;
           border-radius: 0 8px 8px 0;
           font-size: 13px;
           color: rgba(240, 244, 232, 0.8);
           margin-bottom: 20px;
+          margin-top: 20px;
         }
 
         .ghin-tip strong {
@@ -4034,8 +4036,8 @@ export default function App() {
               </div>
               
               <header className="tool-header">
-                <div className="logo">CREATE A PLAN</div>
-                <h1 className="tool-title">Improve Your Game</h1>
+                <div className="logo">GOLF STRATEGY</div>
+                <h1 className="tool-title">Analyze Your Game</h1>
               </header>
             </>
           )}
