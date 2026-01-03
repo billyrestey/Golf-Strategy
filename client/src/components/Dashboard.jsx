@@ -232,7 +232,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         </div>
         <div className="dash-header-buttons">
           <button className="new-course-btn" onClick={onNewCourseStrategy}>
-            🗺️ New Course Strategy
+            + New Course Strategy
           </button>
           <button className="new-analysis-btn" onClick={onNewAnalysis}>
             + New Analysis
@@ -476,7 +476,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
                 <h3>No course strategies yet</h3>
                 <p>Generate a strategy for your next round</p>
                 <button className="primary-btn" onClick={onNewCourseStrategy}>
-                  + New Course Strategy
+                  New Course Strategy
                 </button>
               </div>
             )}
