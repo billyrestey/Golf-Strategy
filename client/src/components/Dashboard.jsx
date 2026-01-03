@@ -244,7 +244,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
       <div className="progress-card">
         <div className="progress-header">
           <div className="progress-title">
-            <span className="progress-icon">🎯</span>
+            <span className="progress-icon"></span>
             <h2>Stroke Index</h2>
             {user?.ghin_number && (
               <span className="ghin-badge">GHIN #{user.ghin_number}</span>
