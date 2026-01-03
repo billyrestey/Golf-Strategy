@@ -41,6 +41,14 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const [error, setError] = useState(null);
+  
+  // GHIN connection state
+  const [ghinConnected, setGhinConnected] = useState(false);
+  const [ghinToken, setGhinToken] = useState(null);
+  const [ghinScores, setGhinScores] = useState(null);
+  const [isConnectingGhin, setIsConnectingGhin] = useState(false);
+  const [showGhinModal, setShowGhinModal] = useState(false);
+  const [ghinCredentials, setGhinCredentials] = useState({ emailOrGhin: '', password: '' });
 
   const strengthOptions = [
     { id: 'driving', label: 'Driving Distance', icon: '🚀' },
@@ -87,6 +95,87 @@ export default function App() {
     }));
   };
 
+  // Connect to GHIN and fetch scores
+  const connectGhin = async () => {
+    if (!ghinCredentials.emailOrGhin || !ghinCredentials.password) {
+      setError('Please enter your GHIN email/number and password');
+      return;
+    }
+
+    setIsConnectingGhin(true);
+    setError(null);
+
+    try {
+      // First authenticate with GHIN
+      const connectResponse = await fetch(`${API_URL}/api/ghin/connect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          emailOrGhin: ghinCredentials.emailOrGhin,
+          password: ghinCredentials.password
+        })
+      });
+
+      const connectData = await connectResponse.json();
+
+      if (!connectResponse.ok) {
+        throw new Error(connectData.error || 'Failed to connect to GHIN');
+      }
+
+      // Store token and golfer info
+      setGhinToken(connectData.ghinToken);
+      
+      // Update form with golfer info
+      setFormData(prev => ({
+        ...prev,
+        name: connectData.golfer.fullName || `${connectData.golfer.firstName} ${connectData.golfer.lastName}`,
+        handicap: connectData.golfer.handicapIndex?.toString() || prev.handicap
+      }));
+
+      // Now fetch detailed scores
+      const scoresResponse = await fetch(`${API_URL}/api/ghin/detailed-scores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ghinNumber: connectData.golfer.ghinNumber,
+          ghinToken: connectData.ghinToken,
+          limit: 20
+        })
+      });
+
+      const scoresData = await scoresResponse.json();
+
+      if (scoresData.success) {
+        setGhinScores(scoresData);
+        setGhinConnected(true);
+        setShowGhinModal(false);
+        
+        // Auto-detect home course from most played course
+        if (scoresData.scores?.length > 0) {
+          const courseCounts = {};
+          scoresData.scores.forEach(s => {
+            courseCounts[s.courseName] = (courseCounts[s.courseName] || 0) + 1;
+          });
+          const topCourse = Object.entries(courseCounts).sort((a, b) => b[1] - a[1])[0];
+          if (topCourse && !formData.homeCourse) {
+            setFormData(prev => ({ ...prev, homeCourse: topCourse[0] }));
+          }
+        }
+      }
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsConnectingGhin(false);
+    }
+  };
+
   const [previewMode, setPreviewMode] = useState(false);
   const [pendingAnalysis, setPendingAnalysis] = useState(null);
 
@@ -108,6 +197,11 @@ export default function App() {
       submitData.append('missDescription', formData.missDescription);
       submitData.append('strengths', JSON.stringify(formData.strengths));
       submitData.append('preview', isPreview.toString());
+      
+      // Include GHIN scores if connected
+      if (ghinConnected && ghinScores?.scores) {
+        submitData.append('ghinScores', JSON.stringify(ghinScores.scores));
+      }
       
       // Append scorecard files
       formData.uploadedCards.forEach((card, index) => {
@@ -561,10 +655,59 @@ export default function App() {
     <div className="step-content">
       <div className="step-header">
         <span className="step-number">04</span>
-        <h2>Upload your scorecards</h2>
-        <p>Screenshots from GHIN, Arccos, or any golf app. 5-10 recent rounds is ideal.</p>
+        <h2>Add your scores</h2>
+        <p>Connect GHIN for automatic import, or upload scorecard screenshots.</p>
       </div>
       
+      {/* GHIN Connection Option */}
+      {!ghinConnected ? (
+        <div className="ghin-connect-section">
+          <button 
+            className="ghin-connect-btn"
+            onClick={() => setShowGhinModal(true)}
+          >
+            <span className="ghin-icon">⛳</span>
+            <div className="ghin-btn-text">
+              <strong>Connect GHIN Account</strong>
+              <span>Auto-import your recent rounds with hole-by-hole data</span>
+            </div>
+            <span className="ghin-arrow">→</span>
+          </button>
+          
+          <div className="or-divider">
+            <span>or upload manually</span>
+          </div>
+        </div>
+      ) : (
+        <div className="ghin-connected-section">
+          <div className="ghin-success">
+            <span className="success-icon">✓</span>
+            <div className="success-text">
+              <strong>GHIN Connected!</strong>
+              <span>{ghinScores?.scores?.length || 0} rounds imported • {ghinScores?.scoresWithHoleData || 0} with hole-by-hole data</span>
+            </div>
+          </div>
+          
+          {ghinScores?.scores?.length > 0 && (
+            <div className="imported-rounds">
+              <div className="rounds-preview">
+                {ghinScores.scores.slice(0, 5).map((score, i) => (
+                  <div key={i} className="round-chip imported">
+                    <span className="round-score">{score.totalScore}</span>
+                    <span className="round-course">{score.courseName?.substring(0, 20)}</span>
+                    {score.holeScores && <span className="hole-badge">18H</span>}
+                  </div>
+                ))}
+                {ghinScores.scores.length > 5 && (
+                  <div className="round-chip more">+{ghinScores.scores.length - 5} more</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Manual Upload Option */}
       <div className="upload-zone">
         <input
           type="file"
@@ -577,7 +720,7 @@ export default function App() {
         <label htmlFor="scorecard-upload" className="upload-label">
           <div className="upload-icon">📸</div>
           <div className="upload-text">
-            <strong>Drop scorecards here</strong>
+            <strong>{ghinConnected ? 'Add more scorecards (optional)' : 'Drop scorecards here'}</strong>
             <span>or click to browse</span>
           </div>
         </label>
@@ -618,13 +761,13 @@ export default function App() {
           disabled={isAnalyzing}
         >
           {isAnalyzing ? 'Analyzing...' : 
-           formData.uploadedCards.length < 3 
-            ? `Analyze (${formData.uploadedCards.length} cards)` 
-            : 'Analyze My Game →'}
+           (ghinConnected || formData.uploadedCards.length >= 3)
+            ? 'Analyze My Game →' 
+            : `Analyze (${formData.uploadedCards.length} cards)`}
         </button>
       </div>
       
-      {formData.uploadedCards.length < 3 && (
+      {!ghinConnected && formData.uploadedCards.length < 3 && (
         <p className="skip-note">
           More scorecards = better analysis. <button className="skip-link" onClick={analyzeGame}>Continue anyway</button>
         </p>
@@ -1122,7 +1265,99 @@ export default function App() {
         showPricing={showPricingFlow}
         requirePayment={previewMode && pendingAnalysis !== null}
         onUnlock={unlockAnalysis}
+        onGhinConnected={async ({ ghinToken: newGhinToken, golfer }) => {
+          // User signed up with GHIN - fetch their scores
+          setGhinToken(newGhinToken);
+          setFormData(prev => ({
+            ...prev,
+            name: `${golfer.firstName} ${golfer.lastName}`,
+            handicap: golfer.handicapIndex?.toString() || prev.handicap
+          }));
+          
+          // Fetch detailed scores
+          try {
+            const scoresResponse = await fetch(`${API_URL}/api/ghin/detailed-scores`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                ghinNumber: golfer.ghinNumber,
+                ghinToken: newGhinToken,
+                limit: 20
+              })
+            });
+            const scoresData = await scoresResponse.json();
+            if (scoresData.success) {
+              setGhinScores(scoresData);
+              setGhinConnected(true);
+              
+              // Auto-detect home course
+              if (scoresData.scores?.length > 0) {
+                const courseCounts = {};
+                scoresData.scores.forEach(s => {
+                  courseCounts[s.courseName] = (courseCounts[s.courseName] || 0) + 1;
+                });
+                const topCourse = Object.entries(courseCounts).sort((a, b) => b[1] - a[1])[0];
+                if (topCourse && !formData.homeCourse) {
+                  setFormData(prev => ({ ...prev, homeCourse: topCourse[0] }));
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Failed to fetch GHIN scores:', err);
+          }
+        }}
       />
+      
+      {/* GHIN Connect Modal (separate from auth flow) */}
+      {showGhinModal && (
+        <div className="modal-overlay" onClick={() => setShowGhinModal(false)}>
+          <div className="modal-content ghin-modal" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowGhinModal(false)}>×</button>
+            
+            <h2>⛳ Connect GHIN Account</h2>
+            <p className="modal-subtitle">
+              Import your recent rounds automatically, including hole-by-hole scores when available.
+            </p>
+
+            {error && <div className="auth-error">{error}</div>}
+
+            <div className="form-group">
+              <label>GHIN Email or Number</label>
+              <input
+                type="text"
+                value={ghinCredentials.emailOrGhin}
+                onChange={e => setGhinCredentials(prev => ({ ...prev, emailOrGhin: e.target.value }))}
+                placeholder="email@example.com or 1234567"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>GHIN Password</label>
+              <input
+                type="password"
+                value={ghinCredentials.password}
+                onChange={e => setGhinCredentials(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="Your GHIN password"
+              />
+            </div>
+
+            <button 
+              className="ghin-submit-btn"
+              onClick={connectGhin}
+              disabled={isConnectingGhin}
+            >
+              {isConnectingGhin ? 'Connecting...' : 'Connect & Import Scores'}
+            </button>
+
+            <p className="ghin-note">
+              🔒 Your credentials are used only to fetch your scores and are not stored.
+            </p>
+          </div>
+        </div>
+      )}
       
       {/* Pricing Modal */}
       <PricingModal
@@ -1486,6 +1721,296 @@ export default function App() {
         .strength-label {
           font-size: 14px;
           font-weight: 500;
+          text-align: center;
+        }
+
+        /* GHIN Connect Styles */
+        .ghin-connect-section {
+          margin-bottom: 24px;
+        }
+
+        .ghin-connect-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 20px 24px;
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.15), rgba(124, 185, 124, 0.05));
+          border: 2px solid rgba(124, 185, 124, 0.3);
+          border-radius: 16px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-align: left;
+          font-family: inherit;
+          color: inherit;
+        }
+
+        .ghin-connect-btn:hover {
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.25), rgba(124, 185, 124, 0.1));
+          border-color: #7cb97c;
+          transform: translateY(-2px);
+        }
+
+        .ghin-icon {
+          font-size: 32px;
+        }
+
+        .ghin-btn-text {
+          flex: 1;
+        }
+
+        .ghin-btn-text strong {
+          display: block;
+          font-size: 16px;
+          margin-bottom: 4px;
+        }
+
+        .ghin-btn-text span {
+          font-size: 13px;
+          color: rgba(240, 244, 232, 0.6);
+        }
+
+        .ghin-arrow {
+          font-size: 20px;
+          color: #7cb97c;
+        }
+
+        .or-divider {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin: 24px 0;
+        }
+
+        .or-divider::before,
+        .or-divider::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .or-divider span {
+          font-size: 13px;
+          color: rgba(240, 244, 232, 0.4);
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .ghin-connected-section {
+          margin-bottom: 24px;
+        }
+
+        .ghin-success {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 16px 20px;
+          background: rgba(124, 185, 124, 0.1);
+          border: 1px solid rgba(124, 185, 124, 0.3);
+          border-radius: 12px;
+          margin-bottom: 16px;
+        }
+
+        .success-icon {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #7cb97c;
+          color: #0d1f0d;
+          border-radius: 50%;
+          font-weight: bold;
+        }
+
+        .success-text strong {
+          display: block;
+          color: #7cb97c;
+          margin-bottom: 2px;
+        }
+
+        .success-text span {
+          font-size: 13px;
+          color: rgba(240, 244, 232, 0.6);
+        }
+
+        .imported-rounds {
+          margin-top: 12px;
+        }
+
+        .rounds-preview {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .round-chip.imported {
+          background: rgba(124, 185, 124, 0.1);
+          border: 1px solid rgba(124, 185, 124, 0.2);
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-size: 12px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .round-chip.imported .round-score {
+          font-size: 18px;
+          font-weight: 600;
+          color: #7cb97c;
+        }
+
+        .round-chip.imported .round-course {
+          font-size: 10px;
+          color: rgba(240, 244, 232, 0.5);
+        }
+
+        .hole-badge {
+          background: #7cb97c;
+          color: #0d1f0d;
+          font-size: 9px;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-weight: 600;
+        }
+
+        .round-chip.more {
+          background: rgba(255, 255, 255, 0.05);
+          color: rgba(240, 244, 232, 0.5);
+          font-size: 12px;
+          padding: 8px 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* Modal Overlay Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.85);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 20px;
+          overflow-y: auto;
+        }
+
+        .modal-content {
+          background: linear-gradient(145deg, #1a3a1a, #0d1f0d);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 20px;
+          padding: 40px;
+          width: 100%;
+          position: relative;
+        }
+
+        .modal-close {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          width: 32px;
+          height: 32px;
+          background: rgba(255, 255, 255, 0.1);
+          border: none;
+          border-radius: 50%;
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 20px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .modal-close:hover {
+          background: rgba(255, 255, 255, 0.2);
+          color: #fff;
+        }
+
+        .modal-subtitle {
+          color: rgba(240, 244, 232, 0.7);
+          margin-bottom: 24px;
+        }
+
+        .auth-error {
+          background: rgba(220, 53, 69, 0.2);
+          border: 1px solid rgba(220, 53, 69, 0.5);
+          color: #ff6b6b;
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin-bottom: 16px;
+          font-size: 14px;
+        }
+
+        .form-group {
+          margin-bottom: 16px;
+        }
+
+        .form-group label {
+          display: block;
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: rgba(240, 244, 232, 0.6);
+          margin-bottom: 6px;
+        }
+
+        .modal-content input {
+          width: 100%;
+          padding: 14px 16px;
+          font-size: 16px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+          color: #fff;
+          font-family: inherit;
+        }
+
+        .modal-content input:focus {
+          outline: none;
+          border-color: #7cb97c;
+        }
+
+        .ghin-modal {
+          max-width: 420px;
+        }
+
+        .ghin-submit-btn {
+          width: 100%;
+          padding: 16px;
+          background: linear-gradient(135deg, #7cb97c, #5a9a5a);
+          color: #0d1f0d;
+          border: none;
+          border-radius: 12px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          margin-top: 8px;
+        }
+
+        .ghin-submit-btn:hover {
+          transform: translateY(-2px);
+        }
+
+        .ghin-submit-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .ghin-note {
+          margin-top: 16px;
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.5);
           text-align: center;
         }
         
