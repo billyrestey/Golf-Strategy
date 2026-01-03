@@ -276,11 +276,13 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
             <div 
               className="progress-bar-fill" 
               style={{ width: `${progressPercent}%` }}
-            />
+            >
+              <div className="progress-glow"></div>
+            </div>
           </div>
           <div className="progress-labels">
             <span>Started: {startingHandicap.toFixed(1)}</span>
-            <span>{progressPercent.toFixed(0)}% there!</span>
+            <span className="progress-percent">{progressPercent.toFixed(0)}% there!</span>
             <span>Goal: {targetHandicap.toFixed(1)}</span>
           </div>
         </div>
@@ -844,25 +846,72 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         }
 
         .progress-bar-bg {
-          height: 12px;
-          background: rgba(0, 0, 0, 0.3);
-          border-radius: 6px;
-          overflow: hidden;
+          height: 16px;
+          background: rgba(0, 0, 0, 0.4);
+          border-radius: 10px;
+          overflow: visible;
+          position: relative;
+          border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .progress-bar-fill {
           height: 100%;
-          background: linear-gradient(90deg, #7cb97c, #a8d4a8);
-          border-radius: 6px;
-          transition: width 0.5s ease;
+          background: linear-gradient(90deg, 
+            #3d6b3d 0%, 
+            #5a9a5a 30%, 
+            #7cb97c 60%, 
+            #a8e6a8 85%,
+            #d4ffd4 100%
+          );
+          border-radius: 10px;
+          transition: width 0.6s ease;
+          position: relative;
+          min-width: 20px;
+          box-shadow: 
+            0 0 10px rgba(124, 185, 124, 0.4),
+            0 0 20px rgba(124, 185, 124, 0.2);
+        }
+
+        .progress-glow {
+          position: absolute;
+          right: -2px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 20px;
+          height: 20px;
+          background: radial-gradient(circle, 
+            rgba(212, 255, 212, 1) 0%,
+            rgba(168, 230, 168, 0.8) 30%,
+            rgba(124, 185, 124, 0.4) 60%,
+            transparent 100%
+          );
+          border-radius: 50%;
+          filter: blur(2px);
+          animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+          0%, 100% {
+            opacity: 1;
+            transform: translateY(-50%) scale(1);
+          }
+          50% {
+            opacity: 0.7;
+            transform: translateY(-50%) scale(1.2);
+          }
         }
 
         .progress-labels {
           display: flex;
           justify-content: space-between;
-          margin-top: 8px;
+          margin-top: 10px;
           font-size: 12px;
           color: rgba(240, 244, 232, 0.5);
+        }
+
+        .progress-percent {
+          color: #a8e6a8;
+          font-weight: 600;
         }
 
         .key-insight-mini {
