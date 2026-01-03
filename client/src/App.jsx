@@ -196,21 +196,12 @@ export default function App() {
     setView(isAuthenticated ? 'dashboard' : 'landing');
   };
 
-  // Unlock full analysis after signup/login - only if user has credits or subscription
+  // Unlock full analysis - ONLY called after explicit payment/trial code
   const unlockAnalysis = async () => {
-    if (!pendingAnalysis || !isAuthenticated) return;
-    
-    // Check if user can access (has credits or pro subscription)
-    const canAccess = user?.subscriptionStatus === 'pro' || (user?.credits && user.credits > 0);
-    
-    if (!canAccess) {
-      // User logged in but has no credits - show pricing modal
-      setShowPricingModal(true);
-      return;
-    }
+    if (!pendingAnalysis || !isAuthenticated || !user) return;
     
     try {
-      // Save the analysis to user's account
+      // Save the analysis to user's account (consumes 1 credit if not pro)
       const response = await fetch(`${API_URL}/api/analyses/save`, {
         method: 'POST',
         headers: {
@@ -234,29 +225,27 @@ export default function App() {
         }
       }
       
-      // Reveal full analysis
+      // Reveal full analysis and close modals
       setPreviewMode(false);
       setPendingAnalysis(null);
+      setShowAuthModal(false);
+      setShowPricingFlow(false);
     } catch (error) {
       console.error('Error saving analysis:', error);
-      // Still show full analysis even if save fails
-      setPreviewMode(false);
+      // Don't unlock on error - keep preview mode
     }
   };
 
-  // When user logs in while in preview mode, check if they can unlock
+  // NO auto-unlock effect - user must always go through payment flow
+  // This effect only handles cleanup/edge cases
   useEffect(() => {
-    if (isAuthenticated && previewMode && pendingAnalysis && user) {
-      // Only unlock if user has credits or subscription
-      const canAccess = user.subscriptionStatus === 'pro' || (user.credits && user.credits > 0);
-      if (canAccess) {
-        unlockAnalysis();
-      } else {
-        // Show pricing modal - they need to purchase
-        setShowPricingModal(true);
-      }
+    // If user is authenticated but in preview mode, ensure auth modal stays open for payment
+    if (isAuthenticated && previewMode && pendingAnalysis && !showAuthModal) {
+      // User somehow closed modal while in preview - reopen it
+      setShowPricingFlow(true);
+      setShowAuthModal(true);
     }
-  }, [isAuthenticated, previewMode, user]);
+  }, [isAuthenticated, previewMode, pendingAnalysis, showAuthModal]);
 
   // Start new analysis from dashboard
   const startNewAnalysis = () => {

@@ -18,15 +18,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
 
   const { login, register, token, isAuthenticated, user } = useAuth();
 
-  // Handle close - prevent if payment is required and user has no credits
+  // Handle close - PREVENT closing if payment is required
   const handleClose = () => {
+    // If payment is required and we're on pricing step, don't allow closing
     if (requirePayment && step === 'pricing') {
-      // Check if user has credits or subscription
-      const canAccess = user?.subscriptionStatus === 'pro' || (user?.credits && user.credits > 0);
-      if (!canAccess) {
-        // Don't allow closing - user must pay
-        return;
-      }
+      // User MUST pay - cannot close
+      return;
+    }
+    // Also prevent closing during auth step if payment will be required
+    if (requirePayment && step === 'auth') {
+      // Allow going back but not closing entirely
+      return;
     }
     onClose();
   };
@@ -100,18 +102,16 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
     try {
       if (mode === 'login') {
         await login(email, password);
-        if (showPricing) {
-          setStep('pricing');
-        } else {
-          onClose();
-        }
       } else {
         await register(email, password, name);
-        if (showPricing) {
-          setStep('pricing');
-        } else {
-          onClose();
-        }
+      }
+      
+      // After auth, ALWAYS show pricing if showPricing is true
+      // User must explicitly pay or use trial code to unlock
+      if (showPricing) {
+        setStep('pricing');
+      } else {
+        onClose();
       }
     } catch (err) {
       setError(err.message);
@@ -149,9 +149,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
   // Auth step (signup/login)
   if (step === 'auth') {
     return (
-      <div className="modal-overlay" onClick={handleClose}>
+      <div className="modal-overlay" onClick={requirePayment ? undefined : handleClose}>
         <div className="modal-content auth-modal" onClick={e => e.stopPropagation()}>
-          <button className="modal-close" onClick={handleClose}>×</button>
+          {!requirePayment && (
+            <button className="modal-close" onClick={handleClose}>×</button>
+          )}
           
           <h2>{mode === 'login' ? 'Welcome Back' : (showPricing ? 'Get Your Full Strategy' : 'Create Account')}</h2>
           <p className="modal-subtitle">
@@ -226,9 +228,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
 
   // Pricing step
   return (
-    <div className="modal-overlay" onClick={handleClose}>
+    <div className="modal-overlay" onClick={requirePayment ? undefined : handleClose}>
       <div className="modal-content pricing-modal" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={handleClose}>×</button>
+        {!requirePayment && (
+          <button className="modal-close" onClick={handleClose}>×</button>
+        )}
         
         <h2>🎯 Unlock Your Strategy</h2>
         <p className="modal-subtitle">

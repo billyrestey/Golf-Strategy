@@ -27,7 +27,7 @@ db.exec(`
     ghin_number TEXT,
     subscription_status TEXT DEFAULT 'free',
     subscription_id TEXT,
-    credits INTEGER DEFAULT 1,
+    credits INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
