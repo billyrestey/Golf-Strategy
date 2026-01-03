@@ -1835,6 +1835,7 @@ export default function App() {
           background: rgba(124, 185, 124, 0.1);
           border-left: 3px solid #7cb97c;
           padding: 12px 16px;
+          text-align: center;
           border-radius: 0 8px 8px 0;
           font-size: 13px;
           color: rgba(240, 244, 232, 0.8);
