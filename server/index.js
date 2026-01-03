@@ -41,6 +41,9 @@ if (!fs.existsSync(dataDir)) {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy - required for express-rate-limit behind Railway/Vercel/etc
+app.set('trust proxy', 1);
+
 // Middleware
 const allowedOrigins = [
   'http://localhost:5173',
