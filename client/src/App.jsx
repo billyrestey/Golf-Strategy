@@ -774,39 +774,69 @@ export default function App() {
             )}
             
             <div className="light-system">
-              {analysis.courseStrategy.redLightHoles?.length > 0 && (
+              {(analysis.courseStrategy.redLightHoles?.holes?.length > 0 || 
+                (Array.isArray(analysis.courseStrategy.redLightHoles) && analysis.courseStrategy.redLightHoles.length > 0)) && (
                 <div className="light-group red">
                   <div className="light-header">
                     <span className="light-indicator">🔴</span>
                     <strong>Red Light — Play Safe</strong>
                   </div>
-                  <p>{Array.isArray(analysis.courseStrategy.redLightHoles) 
-                    ? analysis.courseStrategy.redLightHoles.join(', ')
-                    : analysis.courseStrategy.redLightHoles}</p>
+                  <p className="light-holes">
+                    {analysis.courseStrategy.redLightHoles?.holes 
+                      ? (Array.isArray(analysis.courseStrategy.redLightHoles.holes) 
+                          ? analysis.courseStrategy.redLightHoles.holes.join(', ')
+                          : analysis.courseStrategy.redLightHoles.holes)
+                      : (Array.isArray(analysis.courseStrategy.redLightHoles) 
+                          ? analysis.courseStrategy.redLightHoles.join(', ')
+                          : analysis.courseStrategy.redLightHoles)}
+                  </p>
+                  {analysis.courseStrategy.redLightHoles?.strategy && (
+                    <p className="light-strategy">{analysis.courseStrategy.redLightHoles.strategy}</p>
+                  )}
                 </div>
               )}
               
-              {analysis.courseStrategy.yellowLightHoles?.length > 0 && (
+              {(analysis.courseStrategy.yellowLightHoles?.holes?.length > 0 || 
+                (Array.isArray(analysis.courseStrategy.yellowLightHoles) && analysis.courseStrategy.yellowLightHoles.length > 0)) && (
                 <div className="light-group yellow">
                   <div className="light-header">
                     <span className="light-indicator">🟡</span>
                     <strong>Yellow Light — Conditional</strong>
                   </div>
-                  <p>{Array.isArray(analysis.courseStrategy.yellowLightHoles)
-                    ? analysis.courseStrategy.yellowLightHoles.join(', ')
-                    : analysis.courseStrategy.yellowLightHoles}</p>
+                  <p className="light-holes">
+                    {analysis.courseStrategy.yellowLightHoles?.holes 
+                      ? (Array.isArray(analysis.courseStrategy.yellowLightHoles.holes) 
+                          ? analysis.courseStrategy.yellowLightHoles.holes.join(', ')
+                          : analysis.courseStrategy.yellowLightHoles.holes)
+                      : (Array.isArray(analysis.courseStrategy.yellowLightHoles) 
+                          ? analysis.courseStrategy.yellowLightHoles.join(', ')
+                          : analysis.courseStrategy.yellowLightHoles)}
+                  </p>
+                  {analysis.courseStrategy.yellowLightHoles?.strategy && (
+                    <p className="light-strategy">{analysis.courseStrategy.yellowLightHoles.strategy}</p>
+                  )}
                 </div>
               )}
               
-              {analysis.courseStrategy.greenLightHoles?.length > 0 && (
+              {(analysis.courseStrategy.greenLightHoles?.holes?.length > 0 || 
+                (Array.isArray(analysis.courseStrategy.greenLightHoles) && analysis.courseStrategy.greenLightHoles.length > 0)) && (
                 <div className="light-group green">
                   <div className="light-header">
                     <span className="light-indicator">🟢</span>
                     <strong>Green Light — Attack</strong>
                   </div>
-                  <p>{Array.isArray(analysis.courseStrategy.greenLightHoles)
-                    ? analysis.courseStrategy.greenLightHoles.join(', ')
-                    : analysis.courseStrategy.greenLightHoles}</p>
+                  <p className="light-holes">
+                    {analysis.courseStrategy.greenLightHoles?.holes 
+                      ? (Array.isArray(analysis.courseStrategy.greenLightHoles.holes) 
+                          ? analysis.courseStrategy.greenLightHoles.holes.join(', ')
+                          : analysis.courseStrategy.greenLightHoles.holes)
+                      : (Array.isArray(analysis.courseStrategy.greenLightHoles) 
+                          ? analysis.courseStrategy.greenLightHoles.join(', ')
+                          : analysis.courseStrategy.greenLightHoles)}
+                  </p>
+                  {analysis.courseStrategy.greenLightHoles?.strategy && (
+                    <p className="light-strategy">{analysis.courseStrategy.greenLightHoles.strategy}</p>
+                  )}
                 </div>
               )}
             </div>
@@ -1963,6 +1993,21 @@ export default function App() {
           font-size: 14px;
           color: rgba(240, 244, 232, 0.7);
         }
+
+        .light-holes {
+          font-weight: 600;
+          color: rgba(240, 244, 232, 0.9) !important;
+          margin-bottom: 8px;
+        }
+
+        .light-strategy {
+          font-size: 13px !important;
+          line-height: 1.5;
+          color: rgba(240, 244, 232, 0.6) !important;
+          margin-top: 4px;
+          padding-top: 8px;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
         
         .hole-cards {
           display: grid;
@@ -2495,13 +2540,225 @@ export default function App() {
         }
         
         @media print {
+          /* Base print setup */
+          body, html, #root {
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
           .golf-tool {
-            background: white;
-            color: black;
+            background: white !important;
+            color: black !important;
+            padding: 0 !important;
           }
           
-          .results-footer {
-            display: none;
+          /* Hide navigation elements */
+          .user-header,
+          .results-footer,
+          .results-nav,
+          .back-btn,
+          .download-btn,
+          .action-btn {
+            display: none !important;
+          }
+
+          /* Main results container */
+          .results-view {
+            padding: 40px !important;
+            max-width: 100% !important;
+          }
+
+          /* Results header - clean centered title */
+          .results-header {
+            text-align: center !important;
+            margin-bottom: 40px !important;
+            padding-bottom: 20px !important;
+            border-bottom: 2px solid #2d5a2d !important;
+          }
+
+          .results-header h1 {
+            color: #1a3a1a !important;
+            font-size: 28px !important;
+          }
+
+          .results-header p {
+            color: #666 !important;
+            font-size: 14px !important;
+          }
+
+          /* Sections - clean and spacious */
+          .results-section {
+            background: white !important;
+            border: none !important;
+            padding: 24px 0 !important;
+            margin-bottom: 24px !important;
+            page-break-inside: avoid;
+            border-bottom: 1px solid #eee !important;
+          }
+
+          .section-header h2 {
+            color: #1a3a1a !important;
+            font-size: 16px !important;
+          }
+
+          .section-icon {
+            display: none !important;
+          }
+
+          /* Light system (traffic light) */
+          .light-system {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr 1fr !important;
+            gap: 16px !important;
+          }
+
+          .light-group {
+            background: #f8f9f7 !important;
+            padding: 16px !important;
+            border-radius: 8px !important;
+            border: 1px solid #e0e0e0 !important;
+          }
+
+          .light-group.red {
+            border-left: 3px solid #c44 !important;
+          }
+
+          .light-group.yellow {
+            border-left: 3px solid #f0ad4e !important;
+          }
+
+          .light-group.green {
+            border-left: 3px solid #2d5a2d !important;
+          }
+
+          .light-header strong {
+            color: #333 !important;
+            font-size: 13px !important;
+          }
+
+          .light-indicator {
+            font-size: 12px !important;
+          }
+
+          .light-holes {
+            color: #333 !important;
+            font-size: 12px !important;
+          }
+
+          .light-strategy {
+            color: #666 !important;
+            font-size: 11px !important;
+            border-top-color: #eee !important;
+          }
+
+          /* Hole cards */
+          .hole-cards {
+            display: grid !important;
+            gap: 12px !important;
+          }
+
+          .hole-card {
+            background: #f8f9f7 !important;
+            border: 1px solid #e0e0e0 !important;
+            padding: 12px 16px !important;
+            border-radius: 4px !important;
+          }
+
+          .hole-card.trouble {
+            border-left: 3px solid #c44 !important;
+          }
+
+          .hole-card.strength {
+            border-left: 3px solid #2d5a2d !important;
+          }
+
+          .hole-type {
+            color: #333 !important;
+            font-size: 13px !important;
+          }
+
+          .hole-problem, .hole-opportunity {
+            color: #666 !important;
+            font-size: 12px !important;
+          }
+
+          .hole-strategy-text, .hole-target {
+            color: #333 !important;
+            font-size: 11px !important;
+          }
+
+          /* Practice cards */
+          .practice-cards,
+          .drill-cards {
+            display: grid !important;
+            gap: 12px !important;
+          }
+
+          .practice-card,
+          .drill-card {
+            background: #f8f9f7 !important;
+            border: 1px solid #e0e0e0 !important;
+            padding: 12px 16px !important;
+            border-radius: 4px !important;
+          }
+
+          .practice-title,
+          .drill-name {
+            color: #2d5a2d !important;
+            font-size: 13px !important;
+          }
+
+          .practice-duration,
+          .drill-reps {
+            color: #666 !important;
+            font-size: 11px !important;
+          }
+
+          /* Mental game */
+          .mental-card {
+            background: #f0f7f0 !important;
+            border-left: 3px solid #2d5a2d !important;
+            padding: 12px 16px !important;
+          }
+
+          .mental-label {
+            color: #2d5a2d !important;
+            font-size: 11px !important;
+          }
+
+          .mental-content {
+            color: #333 !important;
+            font-size: 13px !important;
+          }
+
+          /* Stats grid */
+          .stats-grid {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 12px !important;
+          }
+
+          .stat-item {
+            background: #f8f9f7 !important;
+            border: 1px solid #e0e0e0 !important;
+            padding: 12px !important;
+            text-align: center !important;
+          }
+
+          .stat-label {
+            color: #666 !important;
+            font-size: 10px !important;
+          }
+
+          .stat-value {
+            color: #1a3a1a !important;
+            font-size: 18px !important;
+          }
+
+          /* Page breaks for 2-page layout */
+          .results-section:nth-child(5) {
+            page-break-before: always;
           }
         }
 
@@ -2841,109 +3098,218 @@ export default function App() {
         }
 
         @media print {
-          /* Hide navigation elements */
+          /* Hide ALL navigation and non-content elements */
           .user-header,
           .course-footer,
           .course-strategy-view .results-nav,
-          .back-btn {
+          .back-btn,
+          .save-btn,
+          .share-btn,
+          .course-footer-actions {
             display: none !important;
           }
+
+          /* Force white background on everything */
+          body,
+          html,
+          #root,
+          .golf-tool,
+          .course-strategy-view,
+          .course-strategy-content {
+            background: white !important;
+            background-color: white !important;
+            color: black !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           
-          /* Reset layout */
+          /* Reset layout for printing */
           .course-strategy-view {
-            padding: 20px !important;
-            padding-top: 0 !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            padding: 40px !important;
             max-width: 100% !important;
+            min-height: auto !important;
           }
           
           .course-strategy-content {
             padding: 0 !important;
+            max-width: 700px !important;
+            margin: 0 auto !important;
           }
 
-          /* White background, black text */
-          .golf-tool,
-          .course-strategy-view {
-            background: white !important;
-            color: black !important;
+          /* Course header styling */
+          .course-header {
+            text-align: center !important;
+            margin-bottom: 40px !important;
+            padding-bottom: 24px !important;
+            border-bottom: 2px solid #2d5a2d !important;
           }
 
           .course-header h1 {
-            color: black !important;
-            font-size: 28px !important;
+            color: #1a3a1a !important;
+            font-size: 32px !important;
+            margin-bottom: 8px !important;
           }
 
           .course-subtitle {
             color: #666 !important;
+            font-size: 14px !important;
           }
 
+          /* Section styling for clean 2-page layout */
           .strategy-section {
             background: white !important;
-            border: 1px solid #ddd !important;
-            border-radius: 8px !important;
-            padding: 16px !important;
-            margin-bottom: 16px !important;
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 24px 0 !important;
+            margin-bottom: 24px !important;
             page-break-inside: avoid;
+            border-bottom: 1px solid #eee !important;
+          }
+
+          .section-header {
+            margin-bottom: 16px !important;
           }
 
           .section-header h2 {
-            color: black !important;
+            color: #1a3a1a !important;
             font-size: 18px !important;
+            font-weight: 600 !important;
           }
 
-          .overview-text,
-          .hole-strategy,
-          .tip-desc {
+          .section-icon {
+            display: none !important;
+          }
+
+          /* Overview text */
+          .overview-text {
             color: #333 !important;
+            font-size: 14px !important;
+            line-height: 1.7 !important;
+          }
+
+          /* Key holes cards */
+          .key-holes {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
           }
 
           .hole-card {
-            background: #f9f9f9 !important;
-            border: 1px solid #ddd !important;
+            background: #f8f9f7 !important;
+            border: 1px solid #e0e0e0 !important;
+            border-left: 3px solid #2d5a2d !important;
+            border-radius: 4px !important;
+            padding: 16px !important;
             page-break-inside: avoid;
           }
 
           .hole-number {
             color: #2d5a2d !important;
+            font-weight: 600 !important;
+            font-size: 15px !important;
           }
 
-          .hole-par, .hole-yardage, .course-meta span {
+          .hole-info {
+            margin: 4px 0 8px 0 !important;
+          }
+
+          .hole-par, .hole-yardage {
             color: #666 !important;
+            font-size: 12px !important;
+          }
+
+          .hole-strategy {
+            color: #333 !important;
+            font-size: 13px !important;
+            line-height: 1.5 !important;
           }
 
           .hole-danger {
             color: #c44 !important;
+            font-size: 12px !important;
+            margin-top: 8px !important;
+          }
+
+          /* Strategy tips */
+          .strategy-tips {
+            display: grid !important;
+            gap: 12px !important;
           }
 
           .tip-card {
             background: #f0f7f0 !important;
-            border-left-color: #2d5a2d !important;
+            border-left: 3px solid #2d5a2d !important;
+            padding: 12px 16px !important;
+            border-radius: 4px !important;
           }
 
           .tip-title {
             color: #2d5a2d !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            margin-bottom: 4px !important;
+          }
+
+          .tip-desc {
+            color: #333 !important;
+            font-size: 13px !important;
+            line-height: 1.5 !important;
+          }
+
+          /* Scoring targets */
+          .scoring-targets {
+            display: flex !important;
+            justify-content: center !important;
+            gap: 24px !important;
           }
 
           .target-card {
-            background: #f9f9f9 !important;
-            border: 1px solid #ddd !important;
+            background: #f8f9f7 !important;
+            border: 1px solid #e0e0e0 !important;
+            padding: 16px 24px !important;
+            border-radius: 8px !important;
+            text-align: center !important;
+            min-width: 100px !important;
           }
 
           .target-label {
             color: #666 !important;
+            font-size: 11px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
           }
 
           .target-score {
-            color: black !important;
+            color: #1a3a1a !important;
+            font-size: 24px !important;
+            font-weight: 700 !important;
+          }
+
+          /* Checklist */
+          .checklist {
+            list-style: none !important;
+            padding: 0 !important;
           }
 
           .checklist li {
             color: #333 !important;
-            border-bottom-color: #eee !important;
+            padding: 10px 0 !important;
+            border-bottom: 1px solid #eee !important;
+            font-size: 13px !important;
           }
 
-          .scoring-targets {
-            display: flex !important;
-            gap: 16px !important;
+          .checklist li::before {
+            content: "☐ " !important;
+            color: #2d5a2d !important;
+          }
+
+          /* Page breaks for 2-page layout */
+          .strategy-section:nth-child(4) {
+            page-break-before: always;
           }
         }
       `}</style>

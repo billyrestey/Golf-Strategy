@@ -156,9 +156,18 @@ Analyze this golfer's game and return a JSON object with the following structure
     }
   ],
   "courseStrategy": {
-    "redLightHoles": [hole numbers or general advice],
-    "yellowLightHoles": [hole numbers or general advice],
-    "greenLightHoles": [hole numbers or general advice],
+    "redLightHoles": {
+      "holes": [hole numbers or "Long par 4s over 400 yards"],
+      "strategy": "Specific advice on how to play these holes safely"
+    },
+    "yellowLightHoles": {
+      "holes": [hole numbers or "Reachable par 5s, medium par 4s"],
+      "strategy": "When to attack (conditions: wind, lie, score) vs when to lay up"
+    },
+    "greenLightHoles": {
+      "holes": [hole numbers or "Short par 4s, par 5s"],
+      "strategy": "How to maximize scoring opportunities on these holes"
+    },
     "overallApproach": "2-3 sentence philosophy for the round"
   },
   "practicePlan": {
