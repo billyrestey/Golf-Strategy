@@ -80,19 +80,39 @@ export default function App() {
       
       // Try to restore pending analysis from localStorage
       const savedPending = localStorage.getItem('pendingAnalysis');
-      const restoredPending = savedPending ? JSON.parse(savedPending) : pendingAnalysis;
       
-      // If there's a pending analysis, show it
-      if (restoredPending) {
-        setAnalysis(restoredPending.analysis);
+      if (savedPending) {
+        try {
+          const restoredPending = JSON.parse(savedPending);
+          // Restore the analysis and form data
+          setAnalysis(restoredPending.analysis);
+          if (restoredPending.formData) {
+            setFormData(restoredPending.formData);
+          }
+          setPreviewMode(false);
+          setStep(5);
+          setView('results');
+          setPendingAnalysis(null);
+          localStorage.removeItem('pendingAnalysis');
+          setShowAuthModal(false);
+        } catch (e) {
+          console.error('Failed to restore pending analysis:', e);
+          localStorage.removeItem('pendingAnalysis');
+          setView('dashboard');
+        }
+      } else if (pendingAnalysis) {
+        // Use in-memory pending analysis if localStorage is empty
+        setAnalysis(pendingAnalysis.analysis);
+        if (pendingAnalysis.formData) {
+          setFormData(pendingAnalysis.formData);
+        }
         setPreviewMode(false);
         setStep(5);
         setView('results');
         setPendingAnalysis(null);
-        localStorage.removeItem('pendingAnalysis');
         setShowAuthModal(false);
       } else {
-        // Otherwise just go to dashboard
+        // No pending analysis - go to dashboard
         setView('dashboard');
       }
     }
@@ -420,30 +440,6 @@ export default function App() {
       setShowAuthModal(true);
     }
   }, [isAuthenticated, previewMode, pendingAnalysis, showAuthModal]);
-
-  // Handle payment success redirect from Stripe
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment');
-    
-    if (paymentStatus === 'success' && isAuthenticated) {
-      // Clear the URL param
-      window.history.replaceState({}, '', window.location.pathname);
-      
-      // Refresh user data to get updated credits/subscription
-      if (refreshUser) {
-        refreshUser();
-      }
-      
-      // If we have a pending analysis, unlock it
-      if (pendingAnalysis) {
-        unlockAnalysis();
-      } else {
-        // No pending analysis - go to dashboard
-        setView('dashboard');
-      }
-    }
-  }, [isAuthenticated, pendingAnalysis]);
 
   // Start new analysis from dashboard
   const startNewAnalysis = () => {

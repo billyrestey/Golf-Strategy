@@ -4,8 +4,12 @@ import { useAuth } from '../context/AuthContext';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function PricingModal({ isOpen, onClose }) {
-  const { token, user } = useAuth();
+  const { token, user, refreshUser } = useAuth();
   const [loading, setLoading] = useState(null);
+  const [trialCode, setTrialCode] = useState('');
+  const [trialLoading, setTrialLoading] = useState(false);
+  const [trialError, setTrialError] = useState('');
+  const [trialSuccess, setTrialSuccess] = useState(false);
 
   if (!isOpen) return null;
 
@@ -33,6 +37,40 @@ export default function PricingModal({ isOpen, onClose }) {
       alert('Failed to start checkout. Please try again.');
     } finally {
       setLoading(null);
+    }
+  };
+
+  const handleTrialCode = async () => {
+    if (!trialCode.trim()) return;
+    
+    setTrialLoading(true);
+    setTrialError('');
+    
+    try {
+      const response = await fetch(`${API_URL}/api/payments/activate-trial`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ code: trialCode.trim() })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setTrialSuccess(true);
+        if (refreshUser) refreshUser();
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } else {
+        setTrialError(data.error || 'Invalid code');
+      }
+    } catch (error) {
+      setTrialError('Failed to activate code');
+    } finally {
+      setTrialLoading(false);
     }
   };
 
@@ -120,6 +158,32 @@ export default function PricingModal({ isOpen, onClose }) {
               </button>
             </div>
           ))}
+        </div>
+
+        {/* Trial Code Section */}
+        <div className="trial-section">
+          <p className="trial-label">Have a discount code?</p>
+          {trialSuccess ? (
+            <div className="trial-success">✓ Code activated! Refreshing...</div>
+          ) : (
+            <div className="trial-input-row">
+              <input
+                type="text"
+                value={trialCode}
+                onChange={e => setTrialCode(e.target.value)}
+                placeholder="Enter code"
+                className="trial-input"
+              />
+              <button 
+                className="trial-btn"
+                onClick={handleTrialCode}
+                disabled={trialLoading || !trialCode.trim()}
+              >
+                {trialLoading ? '...' : 'Apply'}
+              </button>
+            </div>
+          )}
+          {trialError && <p className="trial-error">{trialError}</p>}
         </div>
 
         <style>{`
@@ -313,6 +377,75 @@ export default function PricingModal({ isOpen, onClose }) {
             .plan-price .price {
               font-size: 32px;
             }
+          }
+
+          .trial-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+          }
+
+          .trial-label {
+            font-size: 13px;
+            color: rgba(240, 244, 232, 0.5);
+            margin-bottom: 12px;
+          }
+
+          .trial-input-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            max-width: 280px;
+            margin: 0 auto;
+          }
+
+          .trial-input {
+            flex: 1;
+            padding: 10px 14px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+          }
+
+          .trial-input:focus {
+            outline: none;
+            border-color: #7cb97c;
+          }
+
+          .trial-btn {
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-family: inherit;
+          }
+
+          .trial-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+          }
+
+          .trial-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+
+          .trial-success {
+            color: #7cb97c;
+            font-size: 14px;
+          }
+
+          .trial-error {
+            color: #ff6b6b;
+            font-size: 13px;
+            margin-top: 8px;
           }
         `}</style>
       </div>
