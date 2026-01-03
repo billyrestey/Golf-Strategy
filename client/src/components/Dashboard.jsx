@@ -362,7 +362,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
               </div>
             ) : (
               <div className="empty-state">
-                <div className="empty-icon">📊</div>
+                <div className="empty-icon"></div>
                 <h3>No analyses yet</h3>
                 <p>Upload your scorecards to get your personalized strategy</p>
                 <button className="primary-btn" onClick={onNewAnalysis}>
