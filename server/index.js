@@ -321,7 +321,35 @@ app.get('/api/stats', authenticateToken, (req, res) => {
   }
 });
 
-// GHIN Handicap Lookup
+// Public GHIN Lookup (no auth required - for signup flow)
+// IMPORTANT: This must come BEFORE /api/ghin/:ghinNumber to avoid route conflict
+app.get('/api/ghin/lookup/:ghinNumber', async (req, res) => {
+  try {
+    const { ghinNumber } = req.params;
+    const result = await lookupGHIN(ghinNumber);
+    
+    if (result.success) {
+      // Return limited info for public lookup
+      res.json({
+        success: true,
+        golfer: {
+          firstName: result.golfer.firstName,
+          lastName: result.golfer.lastName,
+          handicapIndex: result.golfer.handicapIndex,
+          club: result.golfer.club,
+          state: result.golfer.state
+        }
+      });
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    console.error('Public GHIN lookup error:', error);
+    res.status(500).json({ error: 'Failed to lookup GHIN', requiresManualEntry: true });
+  }
+});
+
+// GHIN Handicap Lookup (authenticated)
 app.get('/api/ghin/:ghinNumber', authenticateToken, async (req, res) => {
   try {
     const { ghinNumber } = req.params;
