@@ -405,7 +405,7 @@ export default function App() {
           type="text"
           value={formData.name}
           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-          placeholder="e.g., Billy"
+          placeholder="e.g., Sam Heung Min"
         />
       </div>
       
@@ -417,7 +417,7 @@ export default function App() {
             step="0.1"
             value={formData.handicap}
             onChange={(e) => setFormData(prev => ({ ...prev, handicap: e.target.value }))}
-            placeholder="e.g., 14.7"
+            placeholder="e.g., 12.4"
           />
         </div>
         <div className="form-group">
@@ -427,7 +427,7 @@ export default function App() {
             step="0.1"
             value={formData.targetHandicap}
             onChange={(e) => setFormData(prev => ({ ...prev, targetHandicap: e.target.value }))}
-            placeholder="e.g., 10.0"
+            placeholder="e.g., 8.5"
           />
         </div>
       </div>
