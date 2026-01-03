@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
@@ -63,31 +64,99 @@ app.use(cors({
   credentials: true
 }));
 
-// JSON parsing (but not for Stripe webhook)
+// JSON parsing with size limit (but not for Stripe webhook)
 app.use((req, res, next) => {
   if (req.originalUrl === '/api/payments/webhook') {
     next();
   } else {
-    express.json({ limit: '50mb' })(req, res, next);
+    express.json({ limit: '10mb' })(req, res, next);
   }
 });
 
-// Configure multer for file uploads
+// Configure multer for file uploads with security limits
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
+const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB total
+const MAX_FILES = 10;
+const ALLOWED_MIMETYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+
 const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { 
+    fileSize: MAX_FILE_SIZE,
+    files: MAX_FILES,
+    fieldSize: MAX_FILE_SIZE
+  },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    // Check mimetype
+    if (ALLOWED_MIMETYPES.includes(file.mimetype) || file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'));
+      cb(new Error(`Invalid file type: ${file.mimetype}. Only images are allowed.`));
     }
   }
 });
 
+// Middleware to check total upload size
+const checkTotalSize = (req, res, next) => {
+  if (req.files && req.files.length > 0) {
+    const totalSize = req.files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE) {
+      return res.status(413).json({ 
+        error: `Total upload size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds limit (${MAX_TOTAL_SIZE / 1024 / 1024}MB)` 
+      });
+    }
+  }
+  next();
+};
+
+// Error handler for multer
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'File too large. Maximum size is 10MB per file.' });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(413).json({ error: 'Too many files. Maximum is 10 files.' });
+    }
+    return res.status(400).json({ error: err.message });
+  }
+  if (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  next();
+};
+
+// Rate limiters
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per window
+  message: { error: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const analysisLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // 10 analyses per hour (generous for legitimate use, blocks abuse)
+  message: { error: 'Analysis rate limit reached. Please try again in an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 auth attempts per 15 min
+  message: { error: 'Too many login attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply general rate limit to all routes
+app.use(generalLimiter);
+
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/payments', paymentRoutes);
 
 // Health check
@@ -96,7 +165,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Main analysis endpoint - supports both preview and authenticated modes
-app.post('/api/analyze', optionalAuth, upload.array('scorecards', 10), async (req, res) => {
+app.post('/api/analyze', analysisLimiter, optionalAuth, upload.array('scorecards', 10), handleMulterError, checkTotalSize, async (req, res) => {
   try {
     const { name, handicap, homeCourse, missPattern, missDescription, strengths, preview, ghinScores } = req.body;
     const isPreview = preview === 'true';

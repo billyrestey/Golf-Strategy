@@ -98,17 +98,60 @@ export default function App() {
     }
   }, [isAuthenticated]);
 
+  // File upload limits
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
+  const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB total
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
-    const newCards = files.map(file => ({
-      name: file.name,
-      file: file,
-      preview: URL.createObjectURL(file)
-    }));
-    setFormData(prev => ({
-      ...prev,
-      uploadedCards: [...prev.uploadedCards, ...newCards].slice(0, 10)
-    }));
+    const validFiles = [];
+    const errors = [];
+
+    // Calculate current total size
+    const currentTotalSize = formData.uploadedCards.reduce((sum, card) => sum + (card.file?.size || 0), 0);
+    let newTotalSize = currentTotalSize;
+
+    for (const file of files) {
+      // Check file type
+      if (!ALLOWED_TYPES.includes(file.type) && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
+        errors.push(`${file.name}: Invalid file type. Please upload images only.`);
+        continue;
+      }
+
+      // Check individual file size
+      if (file.size > MAX_FILE_SIZE) {
+        errors.push(`${file.name}: File too large (max 10MB per file)`);
+        continue;
+      }
+
+      // Check total size
+      if (newTotalSize + file.size > MAX_TOTAL_SIZE) {
+        errors.push(`${file.name}: Would exceed total upload limit (50MB)`);
+        continue;
+      }
+
+      newTotalSize += file.size;
+      validFiles.push({
+        name: file.name,
+        file: file,
+        size: file.size,
+        preview: URL.createObjectURL(file)
+      });
+    }
+
+    if (errors.length > 0) {
+      setError(errors.join('\n'));
+      // Clear error after 5 seconds
+      setTimeout(() => setError(null), 5000);
+    }
+
+    if (validFiles.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        uploadedCards: [...prev.uploadedCards, ...validFiles].slice(0, 10)
+      }));
+    }
   };
 
   const removeCard = (index) => {
