@@ -3,9 +3,9 @@ import { useAuth } from '../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-export default function AuthModal({ isOpen, onClose, initialMode = 'login', defaultName = '', showPricing = false, requirePayment = false, onUnlock = null, onGhinConnected = null }) {
+export default function AuthModal({ isOpen, onClose, initialMode = 'login', defaultName = '', showPricing = false, requirePayment = false, onUnlock = null }) {
   const [mode, setMode] = useState(initialMode);
-  const [step, setStep] = useState('auth'); // 'auth', 'ghin', or 'pricing'
+  const [step, setStep] = useState('auth'); // 'auth' or 'pricing'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState(defaultName);
@@ -16,11 +16,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
   const [trialCode, setTrialCode] = useState('');
   const [trialSuccess, setTrialSuccess] = useState(false);
 
-  // GHIN signup state
-  const [ghinEmail, setGhinEmail] = useState('');
-  const [ghinPassword, setGhinPassword] = useState('');
-
-  const { login, register, registerWithGhin, token, isAuthenticated, user } = useAuth();
+  const { login, register, token, isAuthenticated, user } = useAuth();
 
   // Handle close - PREVENT closing if payment is required
   const handleClose = () => {
@@ -30,41 +26,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
       return;
     }
     // Also prevent closing during auth step if payment will be required
-    if (requirePayment && (step === 'auth' || step === 'ghin')) {
+    if (requirePayment && step === 'auth') {
       // Allow going back but not closing entirely
       return;
     }
     onClose();
-  };
-
-  // Handle GHIN signup
-  const handleGhinSignup = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const result = await registerWithGhin(ghinEmail, ghinPassword);
-      
-      // Notify parent about GHIN connection (for fetching scores)
-      if (onGhinConnected) {
-        onGhinConnected({
-          ghinToken: result.ghinToken,
-          golfer: result.golfer
-        });
-      }
-      
-      // Continue to pricing if needed
-      if (showPricing) {
-        setStep('pricing');
-      } else {
-        onClose();
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleTrialCode = async () => {
@@ -180,65 +146,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
     }
   };
 
-  // GHIN auth step
-  if (step === 'ghin') {
-    return (
-      <div className="modal-overlay" onClick={requirePayment ? undefined : handleClose}>
-        <div className="modal-content auth-modal" onClick={e => e.stopPropagation()}>
-          {!requirePayment && (
-            <button className="modal-close" onClick={handleClose}>×</button>
-          )}
-          
-          <h2>⛳ Sign Up with GHIN</h2>
-          <p className="modal-subtitle">
-            Connect your GHIN account to automatically import your handicap and recent scores.
-          </p>
-
-          {error && <div className="auth-error">{error}</div>}
-
-          <form onSubmit={handleGhinSignup}>
-            <div className="form-group">
-              <label>GHIN Email or Number</label>
-              <input
-                type="text"
-                value={ghinEmail}
-                onChange={e => setGhinEmail(e.target.value)}
-                placeholder="email@example.com or 1234567"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>GHIN Password</label>
-              <input
-                type="password"
-                value={ghinPassword}
-                onChange={e => setGhinPassword(e.target.value)}
-                placeholder="Your GHIN password"
-                required
-              />
-            </div>
-
-            <button type="submit" className="auth-submit ghin-submit" disabled={loading}>
-              {loading ? 'Connecting...' : 'Connect GHIN & Continue'}
-            </button>
-          </form>
-
-          <p className="ghin-privacy-note">
-            🔒 Your GHIN password is used only to verify your identity and import your scores. We don't store it.
-          </p>
-
-          <div className="auth-switch">
-            <button onClick={() => setStep('auth')}>← Use email instead</button>
-          </div>
-
-          <style>{authStyles}</style>
-          <style>{ghinStyles}</style>
-        </div>
-      </div>
-    );
-  }
-
   // Auth step (signup/login)
   if (step === 'auth') {
     return (
@@ -254,23 +161,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
               ? 'Sign in to access your analyses'
               : (showPricing ? 'Create an account to unlock your personalized game plan' : 'Start improving your game today')}
           </p>
-
-          {mode === 'register' && (
-            <>
-              <button 
-                className="ghin-signup-btn"
-                onClick={() => setStep('ghin')}
-              >
-                <span className="ghin-icon">⛳</span>
-                <span>Sign up with GHIN</span>
-                <span className="ghin-badge">Recommended</span>
-              </button>
-              
-              <div className="auth-divider">
-                <span>or continue with email</span>
-              </div>
-            </>
-          )}
 
           {error && <div className="auth-error">{error}</div>}
 
@@ -331,7 +221,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', defa
           </div>
 
           <style>{authStyles}</style>
-          <style>{ghinStyles}</style>
         </div>
       </div>
     );
@@ -580,81 +469,6 @@ const authStyles = `
     font-size: 14px;
     text-decoration: underline;
     font-family: inherit;
-  }
-`;
-
-const ghinStyles = `
-  .ghin-signup-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 16px;
-    background: linear-gradient(135deg, rgba(124, 185, 124, 0.2), rgba(124, 185, 124, 0.1));
-    border: 2px solid rgba(124, 185, 124, 0.4);
-    border-radius: 10px;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s ease;
-    margin-bottom: 20px;
-  }
-
-  .ghin-signup-btn:hover {
-    background: linear-gradient(135deg, rgba(124, 185, 124, 0.3), rgba(124, 185, 124, 0.15));
-    border-color: #7cb97c;
-    transform: translateY(-2px);
-  }
-
-  .ghin-signup-btn .ghin-icon {
-    font-size: 20px;
-  }
-
-  .ghin-signup-btn .ghin-badge {
-    background: #7cb97c;
-    color: #0d1f0d;
-    font-size: 10px;
-    padding: 3px 8px;
-    border-radius: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-
-  .auth-divider {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .auth-divider::before,
-  .auth-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .auth-divider span {
-    font-size: 12px;
-    color: rgba(240, 244, 232, 0.4);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .ghin-submit {
-    background: linear-gradient(135deg, #7cb97c, #5a9a5a) !important;
-  }
-
-  .ghin-privacy-note {
-    margin-top: 16px;
-    font-size: 12px;
-    color: rgba(240, 244, 232, 0.5);
-    text-align: center;
-    line-height: 1.5;
   }
 `;
 

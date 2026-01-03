@@ -14,42 +14,14 @@ export async function analyzeGolfGame({
   missPattern, 
   missDescription, 
   strengths, 
-  scorecardImages,
-  ghinScores 
+  scorecardImages 
 }) {
   
-  // Step 1: Get score data from either GHIN or scorecard images
-  let extractedScores = { rounds: [] };
+  // Step 1: Extract scores from scorecards (if provided)
+  let extractedScores = [];
   
-  // Use GHIN scores if available (preferred - already structured)
-  if (ghinScores && ghinScores.length > 0) {
-    console.log(`Using ${ghinScores.length} GHIN scores for analysis`);
-    extractedScores = {
-      rounds: ghinScores.map(score => ({
-        date: score.date,
-        totalScore: score.totalScore,
-        course: score.courseName,
-        courseRating: score.courseRating,
-        slopeRating: score.slopeRating,
-        differential: score.differential,
-        holes: score.holeScores?.map((s, i) => ({
-          hole: i + 1,
-          score: s.score || s,
-          par: s.par,
-          yards: s.yardage
-        })) || null,
-        stats: {
-          fairwaysHit: score.fairwaysHit,
-          gir: score.gir,
-          putts: score.putts
-        }
-      })),
-      source: 'ghin'
-    };
-  } else if (scorecardImages && scorecardImages.length > 0) {
-    // Fall back to extracting from images
+  if (scorecardImages.length > 0) {
     extractedScores = await extractScoresFromImages(scorecardImages, homeCourse);
-    extractedScores.source = 'images';
   }
 
   // Step 2: Generate comprehensive analysis

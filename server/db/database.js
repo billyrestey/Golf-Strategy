@@ -109,11 +109,6 @@ export const findUserByEmail = (email) => {
   return stmt.get(email);
 };
 
-export const findUserByGhin = (ghinNumber) => {
-  const stmt = db.prepare('SELECT * FROM users WHERE ghin_number = ?');
-  return stmt.get(ghinNumber);
-};
-
 export const findUserById = (id) => {
   const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
   return stmt.get(id);

@@ -77,26 +77,6 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
-  // Register/login using GHIN credentials - creates account and imports scores
-  const registerWithGhin = async (ghinEmailOrNumber, ghinPassword) => {
-    const response = await fetch(`${API_URL}/api/auth/register-with-ghin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ghinEmailOrNumber, ghinPassword })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'GHIN registration failed');
-    }
-
-    localStorage.setItem('token', data.token);
-    setToken(data.token);
-    setUser(data.user);
-    return { user: data.user, ghinToken: data.ghinToken, golfer: data.golfer };
-  };
-
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
@@ -116,7 +96,6 @@ export function AuthProvider({ children }) {
     canAnalyze: user?.subscriptionStatus === 'pro' || (user?.credits > 0),
     login,
     register,
-    registerWithGhin,
     logout,
     updateCredits,
     refreshUser: fetchUser

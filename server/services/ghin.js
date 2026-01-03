@@ -1,13 +1,14 @@
 // GHIN API Service
-// Supports both admin lookup and user authentication for detailed scores
+// Uses admin credentials to look up golfer data
 
-let adminToken = null;
-let adminTokenExpiry = null;
+let authToken = null;
+let tokenExpiry = null;
 
-// Authenticate with GHIN API using admin credentials (for basic lookups)
-async function authenticateAdmin() {
-  if (adminToken && adminTokenExpiry && Date.now() < adminTokenExpiry) {
-    return adminToken;
+// Authenticate with GHIN API
+async function authenticate() {
+  // Check if we have a valid token
+  if (authToken && tokenExpiry && Date.now() < tokenExpiry) {
+    return authToken;
   }
 
   const email = process.env.GHIN_EMAIL;
@@ -19,7 +20,7 @@ async function authenticateAdmin() {
   }
 
   try {
-    console.log('Authenticating with GHIN (admin)...');
+    console.log('Authenticating with GHIN...');
     const response = await fetch('https://api2.ghin.com/api/v1/golfer_login.json', {
       method: 'POST',
       headers: {
@@ -44,10 +45,11 @@ async function authenticateAdmin() {
     const data = await response.json();
     
     if (data.golfer_user && data.golfer_user.golfer_user_token) {
-      adminToken = data.golfer_user.golfer_user_token;
-      adminTokenExpiry = Date.now() + (12 * 60 * 60 * 1000);
-      console.log('GHIN admin authentication successful');
-      return adminToken;
+      authToken = data.golfer_user.golfer_user_token;
+      // Token typically valid for 24 hours, refresh after 12
+      tokenExpiry = Date.now() + (12 * 60 * 60 * 1000);
+      console.log('GHIN authentication successful');
+      return authToken;
     }
 
     console.error('GHIN auth response missing token:', data);
@@ -58,212 +60,10 @@ async function authenticateAdmin() {
   }
 }
 
-// Authenticate with user's own GHIN credentials (for detailed data access)
-export async function authenticateUser(emailOrGhin, password) {
-  try {
-    console.log('Authenticating GHIN user...');
-    const response = await fetch('https://api2.ghin.com/api/v1/golfer_login.json', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        user: {
-          email_or_ghin: emailOrGhin,
-          password: password,
-          remember_me: true
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('GHIN user auth failed:', response.status, errorText);
-      return { 
-        success: false, 
-        error: 'Invalid GHIN credentials. Please check your email/GHIN number and password.' 
-      };
-    }
-
-    const data = await response.json();
-    
-    if (data.golfer_user) {
-      return {
-        success: true,
-        token: data.golfer_user.golfer_user_token,
-        golfer: {
-          id: data.golfer_user.golfer_id,
-          ghinNumber: data.golfer_user.ghin_number || data.golfer_user.golfer_id,
-          firstName: data.golfer_user.first_name,
-          lastName: data.golfer_user.last_name,
-          email: data.golfer_user.email,
-          handicapIndex: data.golfer_user.handicap_index,
-          club: data.golfer_user.club_name
-        }
-      };
-    }
-
-    return { success: false, error: 'Authentication failed' };
-  } catch (error) {
-    console.error('GHIN user auth error:', error);
-    return { success: false, error: 'Failed to connect to GHIN' };
-  }
-}
-
-// Get detailed scores using user's token (includes hole-by-hole when available)
-export async function getDetailedScores(ghinNumber, userToken, limit = 20) {
-  try {
-    console.log('Fetching detailed GHIN scores for:', ghinNumber);
-    
-    // First get basic score list
-    const scoresResponse = await fetch(
-      `https://api2.ghin.com/api/v1/golfers/${ghinNumber}/scores.json?limit=${limit}&page=1`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${userToken}`
-        }
-      }
-    );
-
-    if (!scoresResponse.ok) {
-      console.error('GHIN scores fetch failed:', scoresResponse.status);
-      return { success: false, error: 'Could not fetch scores' };
-    }
-
-    const scoresData = await scoresResponse.json();
-    
-    if (!scoresData.scores || scoresData.scores.length === 0) {
-      return { success: true, scores: [], message: 'No scores found' };
-    }
-
-    // For each score, try to get hole-by-hole details
-    const detailedScores = await Promise.all(
-      scoresData.scores.map(async (score) => {
-        const baseScore = {
-          id: score.id,
-          date: score.played_at,
-          courseName: score.course_name,
-          courseId: score.course_id,
-          totalScore: score.adjusted_gross_score,
-          courseRating: score.course_rating,
-          slopeRating: score.slope_rating,
-          differential: score.differential,
-          tees: score.tee_name,
-          numberOfHoles: score.number_of_holes,
-          scoreType: score.score_type,
-          // Stats if available
-          fairwaysHit: score.fairways_hit,
-          gir: score.gir,
-          putts: score.putts,
-          holeScores: null
-        };
-
-        // Try to get hole-by-hole details for this score
-        try {
-          const detailResponse = await fetch(
-            `https://api2.ghin.com/api/v1/scores/${score.id}.json`,
-            {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${userToken}`
-              }
-            }
-          );
-
-          if (detailResponse.ok) {
-            const detailData = await detailResponse.json();
-            if (detailData.score?.hole_scores || detailData.score?.holes) {
-              baseScore.holeScores = detailData.score.hole_scores || detailData.score.holes;
-              baseScore.holeDetails = detailData.score.hole_details;
-            }
-          }
-        } catch (err) {
-          // Hole details not available for this score
-          console.log(`No hole details for score ${score.id}`);
-        }
-
-        return baseScore;
-      })
-    );
-
-    // Also try to get course details for the home course
-    const coursesPlayed = [...new Set(detailedScores.map(s => s.courseName))];
-    
-    return {
-      success: true,
-      scores: detailedScores,
-      totalScores: scoresData.total_scores || detailedScores.length,
-      coursesPlayed,
-      scoresWithHoleData: detailedScores.filter(s => s.holeScores).length
-    };
-
-  } catch (error) {
-    console.error('GHIN detailed scores error:', error);
-    return { success: false, error: 'Failed to fetch detailed scores' };
-  }
-}
-
-// Get course hole information (pars, yardages)
-export async function getCourseDetails(courseId, userToken) {
-  try {
-    const response = await fetch(
-      `https://api2.ghin.com/api/v1/courses/${courseId}.json`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${userToken}`
-        }
-      }
-    );
-
-    if (!response.ok) {
-      return { success: false, error: 'Could not fetch course details' };
-    }
-
-    const data = await response.json();
-    
-    if (data.course) {
-      return {
-        success: true,
-        course: {
-          id: data.course.id,
-          name: data.course.name,
-          city: data.course.city,
-          state: data.course.state,
-          tees: data.course.tees?.map(tee => ({
-            id: tee.id,
-            name: tee.name,
-            rating: tee.rating,
-            slope: tee.slope,
-            yardage: tee.yardage,
-            par: tee.par,
-            holes: tee.holes // Array of hole details with par, yardage per hole
-          }))
-        }
-      };
-    }
-
-    return { success: false, error: 'Course not found' };
-  } catch (error) {
-    console.error('Course details error:', error);
-    return { success: false, error: 'Failed to fetch course details' };
-  }
-}
-
-// Look up a golfer by GHIN number (using admin credentials)
-
 // Look up a golfer by GHIN number
 export async function lookupGHIN(ghinNumber) {
   try {
-    const token = await authenticateAdmin();
+    const token = await authenticate();
     
     if (!token) {
       return { 
@@ -340,7 +140,7 @@ export async function lookupGHIN(ghinNumber) {
 // Get recent scores for a golfer
 export async function getGHINScores(ghinNumber, limit = 20) {
   try {
-    const token = await authenticateAdmin();
+    const token = await authenticate();
     
     if (!token) {
       return { 
@@ -416,7 +216,7 @@ export async function getGHINScores(ghinNumber, limit = 20) {
 // Get detailed golfer stats
 export async function getGHINStats(ghinNumber) {
   try {
-    const token = await authenticateAdmin();
+    const token = await authenticate();
     
     if (!token) {
       return { success: false, error: 'GHIN service unavailable.' };

@@ -10,7 +10,7 @@ import authRoutes, { authenticateToken, optionalAuth } from './routes/auth.js';
 import paymentRoutes from './routes/payments.js';
 import { analyzeGolfGame } from './services/claude.js';
 import { generateStrategyPDF, generatePracticePlanPDF } from './services/pdf.js';
-import { lookupGHIN, getGHINScores, authenticateUser, getDetailedScores, getCourseDetails } from './services/ghin.js';
+import { lookupGHIN, getGHINScores } from './services/ghin.js';
 import { 
   saveAnalysis, 
   getAnalysesByUser, 
@@ -98,7 +98,7 @@ app.get('/api/health', (req, res) => {
 // Main analysis endpoint - supports both preview and authenticated modes
 app.post('/api/analyze', optionalAuth, upload.array('scorecards', 10), async (req, res) => {
   try {
-    const { name, handicap, homeCourse, missPattern, missDescription, strengths, preview, ghinScores } = req.body;
+    const { name, handicap, homeCourse, missPattern, missDescription, strengths, preview } = req.body;
     const isPreview = preview === 'true';
     const userId = req.user?.userId;
 
@@ -119,9 +119,6 @@ app.post('/api/analyze', optionalAuth, upload.array('scorecards', 10), async (re
 
     // Parse strengths if it's a string
     const parsedStrengths = typeof strengths === 'string' ? JSON.parse(strengths) : strengths;
-    
-    // Parse GHIN scores if provided
-    const parsedGhinScores = ghinScores ? (typeof ghinScores === 'string' ? JSON.parse(ghinScores) : ghinScores) : null;
     
     // Convert uploaded files to base64
     const scorecardImages = req.files?.map(file => ({
@@ -146,8 +143,7 @@ app.post('/api/analyze', optionalAuth, upload.array('scorecards', 10), async (re
       missPattern,
       missDescription: missDescription || '',
       strengths: parsedStrengths || [],
-      scorecardImages,
-      ghinScores: parsedGhinScores
+      scorecardImages
     });
 
     // Preview mode - just return analysis, don't save or charge
@@ -433,88 +429,6 @@ app.get('/api/ghin/:ghinNumber/scores', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('GHIN scores error:', error);
     res.status(500).json({ error: 'Failed to get GHIN scores' });
-  }
-});
-
-// Connect GHIN account with user credentials (for detailed score access)
-// Uses optionalAuth so it works during signup flow before user is logged in
-app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
-  try {
-    const { emailOrGhin, password } = req.body;
-    
-    if (!emailOrGhin || !password) {
-      return res.status(400).json({ error: 'GHIN email/number and password required' });
-    }
-
-    // Authenticate with GHIN using user's credentials
-    const authResult = await authenticateUser(emailOrGhin, password);
-    
-    if (!authResult.success) {
-      return res.status(401).json({ error: authResult.error });
-    }
-
-    // If user is logged in, update their profile with GHIN info
-    if (req.user?.userId) {
-      updateUser(req.user.userId, {
-        ghin_number: authResult.golfer.ghinNumber,
-        handicap: authResult.golfer.handicapIndex,
-        name: `${authResult.golfer.firstName} ${authResult.golfer.lastName}`
-      });
-    }
-
-    res.json({
-      success: true,
-      golfer: authResult.golfer,
-      ghinToken: authResult.token // Client stores this for fetching scores
-    });
-  } catch (error) {
-    console.error('GHIN connect error:', error);
-    res.status(500).json({ error: 'Failed to connect GHIN account' });
-  }
-});
-
-// Get detailed scores with hole-by-hole data using user's GHIN token
-// Uses optionalAuth so it works during signup flow
-app.post('/api/ghin/detailed-scores', optionalAuth, async (req, res) => {
-  try {
-    const { ghinNumber, ghinToken, limit } = req.body;
-    
-    if (!ghinNumber || !ghinToken) {
-      return res.status(400).json({ error: 'GHIN number and token required' });
-    }
-
-    const result = await getDetailedScores(ghinNumber, ghinToken, limit || 20);
-    
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(400).json(result);
-    }
-  } catch (error) {
-    console.error('GHIN detailed scores error:', error);
-    res.status(500).json({ error: 'Failed to fetch detailed scores' });
-  }
-});
-
-// Get course details (holes, pars, yardages)
-app.post('/api/ghin/course-details', optionalAuth, async (req, res) => {
-  try {
-    const { courseId, ghinToken } = req.body;
-    
-    if (!courseId || !ghinToken) {
-      return res.status(400).json({ error: 'Course ID and GHIN token required' });
-    }
-
-    const result = await getCourseDetails(courseId, ghinToken);
-    
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(400).json(result);
-    }
-  } catch (error) {
-    console.error('Course details error:', error);
-    res.status(500).json({ error: 'Failed to fetch course details' });
   }
 });
 
