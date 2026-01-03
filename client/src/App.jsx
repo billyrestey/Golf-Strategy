@@ -1224,7 +1224,7 @@ export default function App() {
         }
         
         .tool-header {
-          padding: 140px 40px 20px;
+          padding: 130px 40px 20px;
           text-align: center;
           position: relative;
         }
