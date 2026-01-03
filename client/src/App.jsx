@@ -772,54 +772,6 @@ export default function App() {
           More scorecards = better analysis. <button className="skip-link" onClick={analyzeGame}>Continue anyway</button>
         </p>
       )}
-
-      {/* GHIN Connect Modal */}
-      {showGhinModal && (
-        <div className="modal-overlay" onClick={() => setShowGhinModal(false)}>
-          <div className="modal-content ghin-modal" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowGhinModal(false)}>×</button>
-            
-            <h2>⛳ Connect GHIN Account</h2>
-            <p className="modal-subtitle">
-              Import your recent rounds automatically, including hole-by-hole scores when available.
-            </p>
-
-            {error && <div className="auth-error">{error}</div>}
-
-            <div className="form-group">
-              <label>GHIN Email or Number</label>
-              <input
-                type="text"
-                value={ghinCredentials.emailOrGhin}
-                onChange={e => setGhinCredentials(prev => ({ ...prev, emailOrGhin: e.target.value }))}
-                placeholder="email@example.com or 1234567"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>GHIN Password</label>
-              <input
-                type="password"
-                value={ghinCredentials.password}
-                onChange={e => setGhinCredentials(prev => ({ ...prev, password: e.target.value }))}
-                placeholder="Your GHIN password"
-              />
-            </div>
-
-            <button 
-              className="ghin-submit-btn"
-              onClick={connectGhin}
-              disabled={isConnectingGhin}
-            >
-              {isConnectingGhin ? 'Connecting...' : 'Connect & Import Scores'}
-            </button>
-
-            <p className="ghin-note">
-              🔒 Your credentials are used only to fetch your scores and are not stored.
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -1313,7 +1265,99 @@ export default function App() {
         showPricing={showPricingFlow}
         requirePayment={previewMode && pendingAnalysis !== null}
         onUnlock={unlockAnalysis}
+        onGhinConnected={async ({ ghinToken: newGhinToken, golfer }) => {
+          // User signed up with GHIN - fetch their scores
+          setGhinToken(newGhinToken);
+          setFormData(prev => ({
+            ...prev,
+            name: `${golfer.firstName} ${golfer.lastName}`,
+            handicap: golfer.handicapIndex?.toString() || prev.handicap
+          }));
+          
+          // Fetch detailed scores
+          try {
+            const scoresResponse = await fetch(`${API_URL}/api/ghin/detailed-scores`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                ghinNumber: golfer.ghinNumber,
+                ghinToken: newGhinToken,
+                limit: 20
+              })
+            });
+            const scoresData = await scoresResponse.json();
+            if (scoresData.success) {
+              setGhinScores(scoresData);
+              setGhinConnected(true);
+              
+              // Auto-detect home course
+              if (scoresData.scores?.length > 0) {
+                const courseCounts = {};
+                scoresData.scores.forEach(s => {
+                  courseCounts[s.courseName] = (courseCounts[s.courseName] || 0) + 1;
+                });
+                const topCourse = Object.entries(courseCounts).sort((a, b) => b[1] - a[1])[0];
+                if (topCourse && !formData.homeCourse) {
+                  setFormData(prev => ({ ...prev, homeCourse: topCourse[0] }));
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Failed to fetch GHIN scores:', err);
+          }
+        }}
       />
+      
+      {/* GHIN Connect Modal (separate from auth flow) */}
+      {showGhinModal && (
+        <div className="modal-overlay" onClick={() => setShowGhinModal(false)}>
+          <div className="modal-content ghin-modal" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowGhinModal(false)}>×</button>
+            
+            <h2>⛳ Connect GHIN Account</h2>
+            <p className="modal-subtitle">
+              Import your recent rounds automatically, including hole-by-hole scores when available.
+            </p>
+
+            {error && <div className="auth-error">{error}</div>}
+
+            <div className="form-group">
+              <label>GHIN Email or Number</label>
+              <input
+                type="text"
+                value={ghinCredentials.emailOrGhin}
+                onChange={e => setGhinCredentials(prev => ({ ...prev, emailOrGhin: e.target.value }))}
+                placeholder="email@example.com or 1234567"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>GHIN Password</label>
+              <input
+                type="password"
+                value={ghinCredentials.password}
+                onChange={e => setGhinCredentials(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="Your GHIN password"
+              />
+            </div>
+
+            <button 
+              className="ghin-submit-btn"
+              onClick={connectGhin}
+              disabled={isConnectingGhin}
+            >
+              {isConnectingGhin ? 'Connecting...' : 'Connect & Import Scores'}
+            </button>
+
+            <p className="ghin-note">
+              🔒 Your credentials are used only to fetch your scores and are not stored.
+            </p>
+          </div>
+        </div>
+      )}
       
       {/* Pricing Modal */}
       <PricingModal

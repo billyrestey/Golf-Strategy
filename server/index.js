@@ -437,7 +437,8 @@ app.get('/api/ghin/:ghinNumber/scores', authenticateToken, async (req, res) => {
 });
 
 // Connect GHIN account with user credentials (for detailed score access)
-app.post('/api/ghin/connect', authenticateToken, async (req, res) => {
+// Uses optionalAuth so it works during signup flow before user is logged in
+app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
   try {
     const { emailOrGhin, password } = req.body;
     
@@ -452,16 +453,14 @@ app.post('/api/ghin/connect', authenticateToken, async (req, res) => {
       return res.status(401).json({ error: authResult.error });
     }
 
-    // Store the GHIN token temporarily (in session or encrypted in DB)
-    // For now, we'll return it to the client to use for subsequent requests
-    // In production, you'd want to store this securely server-side
-    
-    // Update user profile with GHIN info
-    updateUser(req.user.userId, {
-      ghin_number: authResult.golfer.ghinNumber,
-      handicap: authResult.golfer.handicapIndex,
-      name: `${authResult.golfer.firstName} ${authResult.golfer.lastName}`
-    });
+    // If user is logged in, update their profile with GHIN info
+    if (req.user?.userId) {
+      updateUser(req.user.userId, {
+        ghin_number: authResult.golfer.ghinNumber,
+        handicap: authResult.golfer.handicapIndex,
+        name: `${authResult.golfer.firstName} ${authResult.golfer.lastName}`
+      });
+    }
 
     res.json({
       success: true,
@@ -475,7 +474,8 @@ app.post('/api/ghin/connect', authenticateToken, async (req, res) => {
 });
 
 // Get detailed scores with hole-by-hole data using user's GHIN token
-app.post('/api/ghin/detailed-scores', authenticateToken, async (req, res) => {
+// Uses optionalAuth so it works during signup flow
+app.post('/api/ghin/detailed-scores', optionalAuth, async (req, res) => {
   try {
     const { ghinNumber, ghinToken, limit } = req.body;
     
@@ -497,7 +497,7 @@ app.post('/api/ghin/detailed-scores', authenticateToken, async (req, res) => {
 });
 
 // Get course details (holes, pars, yardages)
-app.post('/api/ghin/course-details', authenticateToken, async (req, res) => {
+app.post('/api/ghin/course-details', optionalAuth, async (req, res) => {
   try {
     const { courseId, ghinToken } = req.body;
     
