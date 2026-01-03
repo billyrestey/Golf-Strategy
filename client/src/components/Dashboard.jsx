@@ -802,7 +802,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         .progress-title {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 0px;
         }
 
         .progress-icon {
