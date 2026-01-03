@@ -1917,14 +1917,19 @@ export default function App() {
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 16px;
-          padding: 24px;
+          padding: 28px;
+          margin-bottom: 16px;
+        }
+        
+        .results-section + .results-section {
+          margin-top: 8px;
         }
         
         .section-header {
           display: flex;
           align-items: center;
           gap: 12px;
-          margin-bottom: 20px;
+          margin-bottom: 24px;
         }
         
         .section-icon {
@@ -1973,20 +1978,21 @@ export default function App() {
         .light-system {
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 16px;
+          margin-top: 8px;
         }
         
         .light-group {
-          padding: 16px;
-          border-radius: 8px;
-          background: rgba(0, 0, 0, 0.2);
+          padding: 20px;
+          border-radius: 12px;
+          background: rgba(0, 0, 0, 0.25);
         }
         
         .light-header {
           display: flex;
           align-items: center;
-          gap: 8px;
-          margin-bottom: 8px;
+          gap: 10px;
+          margin-bottom: 12px;
         }
         
         .light-group p {
@@ -1996,28 +2002,29 @@ export default function App() {
 
         .light-holes {
           font-weight: 600;
+          font-size: 15px;
           color: rgba(240, 244, 232, 0.9) !important;
           margin-bottom: 8px;
         }
 
         .light-strategy {
           font-size: 13px !important;
-          line-height: 1.5;
-          color: rgba(240, 244, 232, 0.6) !important;
-          margin-top: 4px;
-          padding-top: 8px;
+          line-height: 1.6;
+          color: rgba(240, 244, 232, 0.65) !important;
+          margin-top: 8px;
+          padding-top: 12px;
           border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .hole-cards {
           display: grid;
-          gap: 16px;
+          gap: 20px;
         }
         
         .hole-card {
           background: rgba(0, 0, 0, 0.2);
           border-radius: 12px;
-          padding: 20px;
+          padding: 24px;
           border-left: 4px solid;
         }
         
@@ -2032,32 +2039,33 @@ export default function App() {
         .hole-type {
           font-weight: 600;
           font-size: 16px;
-          margin-bottom: 4px;
+          margin-bottom: 6px;
         }
         
         .specific-holes {
           font-size: 13px;
           color: #7cb97c;
-          margin-bottom: 8px;
+          margin-bottom: 12px;
         }
         
         .hole-problem,
         .hole-opportunity {
           font-size: 14px;
           color: rgba(240, 244, 232, 0.7);
-          margin-bottom: 12px;
+          margin-bottom: 14px;
+          line-height: 1.5;
         }
         
         .hole-strategy,
         .club-rec {
           font-size: 14px;
           line-height: 1.5;
-          margin-bottom: 8px;
+          margin-bottom: 10px;
         }
         
         .acceptable-score,
         .target-score {
-          margin-top: 12px;
+          margin-top: 14px;
           font-size: 13px;
           color: rgba(240, 244, 232, 0.5);
         }

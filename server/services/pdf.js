@@ -339,14 +339,14 @@ export function generateStrategyPDF(analysis, userData) {
 }
 
 /**
- * Generates a detailed practice plan PDF
+ * Generates a detailed practice plan PDF - Clean 2-page layout
  */
 export function generatePracticePlanPDF(analysis, userData) {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({
         size: 'LETTER',
-        margins: { top: 40, bottom: 40, left: 40, right: 40 }
+        margins: { top: 50, bottom: 50, left: 50, right: 50 }
       });
 
       const chunks = [];
@@ -357,85 +357,167 @@ export function generatePracticePlanPDF(analysis, userData) {
       const colors = {
         darkGreen: '#1a472a',
         lightGreen: '#7cb97c',
-        gray: '#666666',
-        lightGray: '#f5f5f5'
+        mediumGreen: '#2d5a3d',
+        gray: '#555555',
+        lightGray: '#f7f7f5'
       };
 
-      const pageWidth = doc.page.width - 80;
+      const pageWidth = doc.page.width - 100;
+      const leftMargin = 50;
 
+      // ========== PAGE 1 ==========
+      
       // Header
-      doc.rect(0, 0, doc.page.width, 80).fill(colors.darkGreen);
+      doc.rect(0, 0, doc.page.width, 100).fill(colors.darkGreen);
       
       doc.fillColor('white')
-         .fontSize(24)
+         .fontSize(28)
          .font('Helvetica-Bold')
-         .text('PRACTICE PLAN', 40, 25);
+         .text('PRACTICE PLAN', leftMargin, 30);
       
       doc.fontSize(12)
          .font('Helvetica')
-         .text(`${userData.name} • Tailored for ${userData.missPattern || 'your'} miss pattern`, 40, 52);
+         .fillColor('rgba(255,255,255,0.8)')
+         .text(`${userData.name} • Tailored for ${userData.missPattern || 'your'} miss pattern`, leftMargin, 65);
 
-      let yPos = 100;
+      let yPos = 130;
 
-      // Weekly Schedule
+      // Weekly Schedule - limit to first 2 sessions on page 1
       if (analysis.practicePlan?.weeklySchedule?.length > 0) {
-        analysis.practicePlan.weeklySchedule.forEach((session, sessionIndex) => {
-          if (yPos > 650) {
-            doc.addPage();
-            yPos = 40;
-          }
-
+        const sessions = analysis.practicePlan.weeklySchedule.slice(0, 2);
+        
+        sessions.forEach((session, sessionIndex) => {
+          // Session header card
+          doc.rect(leftMargin, yPos, pageWidth, 40)
+             .fill(colors.lightGray);
+          doc.rect(leftMargin, yPos, 4, 40).fill(colors.lightGreen);
+          
+          // Session name
           doc.fillColor(colors.darkGreen)
              .fontSize(14)
              .font('Helvetica-Bold')
-             .text(session.session, 40, yPos);
+             .text(session.session, leftMargin + 15, yPos + 8);
           
+          // Duration - positioned on the right
           doc.fillColor(colors.lightGreen)
-             .fontSize(10)
+             .fontSize(11)
              .font('Helvetica')
-             .text(session.duration, 40 + doc.widthOfString(session.session) + 10, yPos + 2);
+             .text(session.duration, leftMargin + pageWidth - 80, yPos + 10, { width: 70, align: 'right' });
           
-          yPos += 20;
-
+          // Focus text
           if (session.focus) {
             doc.fillColor(colors.gray)
-               .fontSize(10)
+               .fontSize(9)
                .font('Helvetica-Oblique')
-               .text(session.focus, 40, yPos, { width: pageWidth });
-            yPos += 18;
+               .text(session.focus, leftMargin + 15, yPos + 26, { width: pageWidth - 100 });
           }
+          
+          yPos += 55;
 
-          session.drills?.forEach((drill, drillIndex) => {
-            if (yPos > 680) {
-              doc.addPage();
-              yPos = 40;
+          // Drills - limit to 2 per session
+          const drills = session.drills?.slice(0, 2) || [];
+          drills.forEach((drill, drillIndex) => {
+            doc.rect(leftMargin, yPos, pageWidth, 65)
+               .fill(colors.lightGray);
+            
+            // Drill name
+            doc.fillColor(colors.darkGreen)
+               .fontSize(11)
+               .font('Helvetica-Bold')
+               .text(drill.name, leftMargin + 15, yPos + 10, { width: pageWidth - 100 });
+            
+            // Reps badge
+            if (drill.reps) {
+              doc.fillColor(colors.lightGreen)
+                 .fontSize(9)
+                 .font('Helvetica-Bold')
+                 .text(drill.reps, leftMargin + pageWidth - 80, yPos + 10, { width: 70, align: 'right' });
             }
+            
+            // Description
+            doc.fillColor(colors.gray)
+               .fontSize(9)
+               .font('Helvetica')
+               .text(drill.description, leftMargin + 15, yPos + 28, { width: pageWidth - 40 });
+            
+            // Why (if exists)
+            if (drill.why) {
+              doc.fillColor(colors.mediumGreen)
+                 .fontSize(8)
+                 .font('Helvetica-Oblique')
+                 .text(`Why: ${drill.why}`, leftMargin + 15, yPos + 48, { width: pageWidth - 40 });
+            }
+            
+            yPos += 75;
+          });
 
-            doc.rect(40, yPos, pageWidth, 70)
+          yPos += 20;
+        });
+      }
+
+      // ========== PAGE 2 ==========
+      doc.addPage();
+      yPos = 50;
+
+      // Remaining sessions (if any)
+      if (analysis.practicePlan?.weeklySchedule?.length > 2) {
+        const remainingSessions = analysis.practicePlan.weeklySchedule.slice(2, 4);
+        
+        remainingSessions.forEach((session, sessionIndex) => {
+          // Session header card
+          doc.rect(leftMargin, yPos, pageWidth, 40)
+             .fill(colors.lightGray);
+          doc.rect(leftMargin, yPos, 4, 40).fill(colors.lightGreen);
+          
+          doc.fillColor(colors.darkGreen)
+             .fontSize(14)
+             .font('Helvetica-Bold')
+             .text(session.session, leftMargin + 15, yPos + 8);
+          
+          doc.fillColor(colors.lightGreen)
+             .fontSize(11)
+             .font('Helvetica')
+             .text(session.duration, leftMargin + pageWidth - 80, yPos + 10, { width: 70, align: 'right' });
+          
+          if (session.focus) {
+            doc.fillColor(colors.gray)
+               .fontSize(9)
+               .font('Helvetica-Oblique')
+               .text(session.focus, leftMargin + 15, yPos + 26, { width: pageWidth - 100 });
+          }
+          
+          yPos += 55;
+
+          const drills = session.drills?.slice(0, 2) || [];
+          drills.forEach((drill) => {
+            doc.rect(leftMargin, yPos, pageWidth, 65)
                .fill(colors.lightGray);
             
             doc.fillColor(colors.darkGreen)
                .fontSize(11)
                .font('Helvetica-Bold')
-               .text(drill.name, 50, yPos + 10);
+               .text(drill.name, leftMargin + 15, yPos + 10, { width: pageWidth - 100 });
             
-            doc.fillColor(colors.lightGreen)
-               .fontSize(9)
-               .text(drill.reps, pageWidth - 30, yPos + 10, { align: 'right' });
+            if (drill.reps) {
+              doc.fillColor(colors.lightGreen)
+                 .fontSize(9)
+                 .font('Helvetica-Bold')
+                 .text(drill.reps, leftMargin + pageWidth - 80, yPos + 10, { width: 70, align: 'right' });
+            }
             
             doc.fillColor(colors.gray)
                .fontSize(9)
                .font('Helvetica')
-               .text(drill.description, 50, yPos + 28, { width: pageWidth - 30 });
+               .text(drill.description, leftMargin + 15, yPos + 28, { width: pageWidth - 40 });
             
             if (drill.why) {
-              doc.fillColor(colors.lightGreen)
+              doc.fillColor(colors.mediumGreen)
                  .fontSize(8)
                  .font('Helvetica-Oblique')
-                 .text(`Why: ${drill.why}`, 50, yPos + 52, { width: pageWidth - 30 });
+                 .text(`Why: ${drill.why}`, leftMargin + 15, yPos + 48, { width: pageWidth - 40 });
             }
             
-            yPos += 80;
+            yPos += 75;
           });
 
           yPos += 20;
@@ -444,35 +526,43 @@ export function generatePracticePlanPDF(analysis, userData) {
 
       // Pre-Round Routine
       if (analysis.practicePlan?.preRoundRoutine?.length > 0) {
-        if (yPos > 550) {
-          doc.addPage();
-          yPos = 40;
-        }
-
+        yPos += 10;
+        
         doc.fillColor(colors.darkGreen)
            .fontSize(14)
            .font('Helvetica-Bold')
-           .text('PRE-ROUND ROUTINE', 40, yPos);
+           .text('PRE-ROUND ROUTINE', leftMargin, yPos);
         
-        yPos += 25;
+        yPos += 30;
 
-        analysis.practicePlan.preRoundRoutine.forEach((step, i) => {
-          doc.circle(50, yPos + 5, 10)
+        analysis.practicePlan.preRoundRoutine.slice(0, 5).forEach((step, i) => {
+          // Number circle
+          doc.circle(leftMargin + 12, yPos + 8, 12)
              .fill(colors.lightGreen);
           
           doc.fillColor('white')
-             .fontSize(10)
+             .fontSize(11)
              .font('Helvetica-Bold')
-             .text((i + 1).toString(), 47, yPos + 1);
+             .text((i + 1).toString(), leftMargin + 8, yPos + 3);
           
+          // Step text
           doc.fillColor(colors.gray)
              .fontSize(10)
              .font('Helvetica')
-             .text(step, 70, yPos, { width: pageWidth - 40 });
+             .text(step, leftMargin + 35, yPos + 2, { width: pageWidth - 50 });
           
-          yPos += 25;
+          yPos += 35;
         });
       }
+
+      // Footer
+      const footerY = doc.page.height - 60;
+      doc.rect(0, footerY, doc.page.width, 60).fill(colors.darkGreen);
+      
+      doc.fillColor('white')
+         .fontSize(8)
+         .font('Helvetica')
+         .text('Generated by Golf Strategy • golfstrategy.app', leftMargin, footerY + 25);
 
       doc.end();
 
