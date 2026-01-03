@@ -202,7 +202,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
   const latestAnalysis = analyses[0];
   const currentHandicap = user?.handicap || latestAnalysis?.handicap || 15;
   const targetHandicap = user?.target_handicap || latestAnalysis?.analysis_json?.summary?.targetHandicap || Math.max(currentHandicap - 5, 0);
-  const startingHandicap = currentHandicap + 3; // Assume started 3 strokes higher
+  const startingHandicap = currentHandicap + 5; // Assume started 3 strokes higher
   const progressPercent = Math.min(100, Math.max(0, 
     ((startingHandicap - currentHandicap) / (startingHandicap - targetHandicap)) * 100
   ));
@@ -244,7 +244,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
       <div className="progress-card">
         <div className="progress-header">
           <div className="progress-title">
-            <span className="progress-icon">🎯</span>
+            <span className="progress-icon"></span>
             <h2>Stroke Index</h2>
             {user?.ghin_number && (
               <span className="ghin-badge">GHIN #{user.ghin_number}</span>
@@ -621,7 +621,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         <div className="modal-overlay" onClick={() => setShowGHINModal(false)}>
           <div className="modal-content ghin-modal" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowGHINModal(false)}>×</button>
-            <h2>📊 Update Stroke Index</h2>
+            <h2>Update Stroke Index</h2>
             <p className="modal-description">
               Keep your stroke index up to date to track your progress toward your goals.
             </p>
@@ -802,7 +802,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         .progress-title {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 0px;
         }
 
         .progress-icon {
