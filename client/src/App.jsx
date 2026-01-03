@@ -747,7 +747,7 @@ export default function App() {
           </div>
           
           <p className="ghin-tip">
-            💡 <strong>Tip:</strong> Take screenshots from the GHIN app's "Score History" screen - they contain all the data we need!
+            💡 <strong>Tip:</strong> Hole-by-hole scorecards work great for analysis!
           </p>
         </div>
       ) : (
@@ -1861,8 +1861,10 @@ export default function App() {
           padding: 12px 16px;
           border-radius: 0 8px 8px 0;
           font-size: 13px;
+          text-align: center;
           color: rgba(240, 244, 232, 0.8);
           margin-bottom: 20px;
+          margin-top: 20px;
         }
 
         .ghin-tip strong {
