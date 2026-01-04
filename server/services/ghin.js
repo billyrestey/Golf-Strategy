@@ -179,23 +179,33 @@ export async function getDetailedScores(ghinNumber, userToken, limit = 20) {
     const scoresData = await scoresResponse.json();
     console.log('Raw GHIN scores response keys:', Object.keys(scoresData));
     
-    if (!scoresData.scores || scoresData.scores.length === 0) {
+    // GHIN returns scores in 'recent_scores', not 'scores'
+    const rawScores = scoresData.recent_scores || scoresData.scores || [];
+    console.log('Number of scores found:', rawScores.length);
+    
+    if (rawScores.length === 0) {
       return { success: true, scores: [], message: 'No scores found' };
     }
 
     // Log first score to see available fields
-    if (scoresData.scores[0]) {
-      console.log('Sample score fields:', Object.keys(scoresData.scores[0]));
+    if (rawScores[0]) {
+      console.log('Sample score fields:', Object.keys(rawScores[0]));
+      console.log('Sample score data:', JSON.stringify({
+        course_name: rawScores[0].course_name,
+        facility_name: rawScores[0].facility_name,
+        adjusted_gross_score: rawScores[0].adjusted_gross_score,
+        differential: rawScores[0].differential
+      }));
     }
 
     // For each score, try to get hole-by-hole details
     const detailedScores = await Promise.all(
-      scoresData.scores.map(async (score) => {
+      rawScores.slice(0, limit).map(async (score) => {
         const baseScore = {
           id: score.id,
           date: score.played_at,
-          courseName: score.course_name,
-          facilityName: score.facility_name,
+          courseName: score.course_name || score.facility_name,
+          facilityName: score.facility_name || score.course_name,
           courseId: score.course_id,
           totalScore: score.adjusted_gross_score,
           rawScore: score.raw_score,

@@ -215,6 +215,7 @@ export default function App() {
       });
 
       const connectData = await connectResponse.json();
+      console.log('GHIN connect response:', connectData);
 
       if (!connectResponse.ok) {
         throw new Error(connectData.error || 'Failed to connect to GHIN');
@@ -227,70 +228,50 @@ export default function App() {
       const golferName = connectData.golfer.playerName || 
                          `${connectData.golfer.firstName} ${connectData.golfer.lastName}`;
       
+      // Use club name as home course fallback
+      const homeCourse = connectData.golfer.club || '';
+      
       setFormData(prev => ({
         ...prev,
         name: golferName,
-        handicap: connectData.golfer.handicapIndex?.toString() || prev.handicap
+        handicap: connectData.golfer.handicapIndex?.toString() || prev.handicap,
+        homeCourse: prev.homeCourse || homeCourse
       }));
 
-      // Check if scores came with the connect response
+      // Process scores
       let scoresData = null;
       
       if (connectData.scores && connectData.scores.length > 0) {
+        console.log('Scores from connect:', connectData.scores.length);
         // Scores came with connect response
         scoresData = {
           success: true,
           scores: connectData.scores,
           scoresWithHoleData: connectData.scores.filter(s => s.holeDetails).length,
-          coursesPlayed: [...new Set(connectData.scores.map(s => s.courseName))]
+          coursesPlayed: [...new Set(connectData.scores.map(s => s.courseName || s.facilityName).filter(Boolean))]
         };
-      } else if (connectData.ghinToken && connectData.golfer.ghinNumber) {
-        // Need to fetch scores separately
-        const scoresResponse = await fetch(`${API_URL}/api/ghin/detailed-scores`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({
-            ghinNumber: connectData.golfer.ghinNumber,
-            ghinToken: connectData.ghinToken,
-            limit: 20
-          })
-        });
-
-        scoresData = await scoresResponse.json();
-      }
-
-      if (scoresData?.success || scoresData?.scores) {
-        setGhinScores(scoresData);
-        setGhinConnected(true);
-        setShowGhinModal(false);
-        setGhinCredentials({ emailOrGhin: '', password: '' }); // Clear credentials
         
-        // Auto-detect home course from most played course
-        if (scoresData.scores?.length > 0) {
-          const courseCounts = {};
-          scoresData.scores.forEach(s => {
-            const courseName = s.courseName || s.facilityName;
-            if (courseName) {
-              courseCounts[courseName] = (courseCounts[courseName] || 0) + 1;
-            }
-          });
-          const topCourse = Object.entries(courseCounts).sort((a, b) => b[1] - a[1])[0];
-          if (topCourse) {
-            setFormData(prev => ({ 
-              ...prev, 
-              homeCourse: prev.homeCourse || topCourse[0] 
-            }));
+        // Override home course with most played course if we have scores
+        const courseCounts = {};
+        connectData.scores.forEach(s => {
+          const courseName = s.courseName || s.facilityName;
+          if (courseName) {
+            courseCounts[courseName] = (courseCounts[courseName] || 0) + 1;
           }
+        });
+        const topCourse = Object.entries(courseCounts).sort((a, b) => b[1] - a[1])[0];
+        if (topCourse) {
+          setFormData(prev => ({ 
+            ...prev, 
+            homeCourse: topCourse[0] 
+          }));
         }
-      } else {
-        // Connected but no scores - still success
-        setGhinConnected(true);
-        setShowGhinModal(false);
-        setGhinCredentials({ emailOrGhin: '', password: '' });
       }
+
+      setGhinScores(scoresData);
+      setGhinConnected(true);
+      setShowGhinModal(false);
+      setGhinCredentials({ emailOrGhin: '', password: '' }); // Clear credentials
 
     } catch (err) {
       setError(err.message);
