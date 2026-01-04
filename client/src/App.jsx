@@ -749,7 +749,7 @@ export default function App() {
     <div className="step-content">
       <div className="step-header">
         <span className="step-number">02</span>
-        <h2>Your goals & game</h2>
+        <h2>Your target goals</h2>
         <p>Help us understand where you want to improve.</p>
       </div>
       
