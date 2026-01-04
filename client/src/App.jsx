@@ -805,6 +805,17 @@ export default function App() {
         </div>
       </div>
       
+      <div className="form-group">
+        <label>Anything else about your miss? <span className="optional-label">(optional)</span></label>
+        <textarea
+          value={formData.missDescription}
+          onChange={(e) => setFormData(prev => ({ ...prev, missDescription: e.target.value }))}
+          placeholder="e.g., Driver is a slice but irons tend to go left... or I miss short-sided a lot around greens..."
+          rows={3}
+          className="miss-details-input"
+        />
+      </div>
+      
       <div className="btn-group">
         <button className="back-btn" onClick={() => setStep(1)}>← Back</button>
         <button 
@@ -2285,6 +2296,35 @@ export default function App() {
           opacity: 1;
           background: #7cb97c;
           color: #0d1f0d;
+        }
+        
+        .optional-label {
+          font-weight: 400;
+          color: rgba(240, 244, 232, 0.4);
+          font-size: 13px;
+        }
+        
+        .miss-details-input {
+          width: 100%;
+          padding: 12px 16px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+          color: #f0f4e8;
+          font-size: 14px;
+          font-family: inherit;
+          resize: vertical;
+          min-height: 80px;
+        }
+        
+        .miss-details-input:focus {
+          outline: none;
+          border-color: rgba(124, 185, 124, 0.5);
+          background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .miss-details-input::placeholder {
+          color: rgba(240, 244, 232, 0.3);
         }
         
         .strength-grid {
