@@ -734,16 +734,6 @@ export default function App() {
             </button>
           </div>
           
-          <div className="form-group" style={{ marginTop: '20px' }}>
-            <label>Home Course {formData.homeCourse ? '(detected)' : ''}</label>
-            <input
-              type="text"
-              value={formData.homeCourse}
-              onChange={(e) => setFormData(prev => ({ ...prev, homeCourse: e.target.value }))}
-              placeholder="e.g., Pebble Beach"
-            />
-          </div>
-          
           <button 
             className="next-btn"
             onClick={() => setStep(2)}
