@@ -337,25 +337,30 @@ export function generateStrategyPDF(analysis, userData) {
       // ========== PAGE 3: HOLE-BY-HOLE STRATEGY ==========
       if (analysis.holeByHoleStrategy?.length > 0) {
         doc.addPage();
-        yPos = 50;
 
-        // Header
-        doc.rect(0, 0, doc.page.width, 80).fill(colors.darkGreen);
+        // Header - taller to accommodate content
+        doc.rect(0, 0, doc.page.width, 85).fill(colors.darkGreen);
+        
+        // Truncate course name if too long
+        const courseName = (userData.homeCourse || 'COURSE STRATEGY').toUpperCase();
+        const displayName = courseName.length > 35 ? courseName.substring(0, 35) + '...' : courseName;
         
         doc.fillColor('white')
-           .fontSize(20)
+           .fontSize(18)
            .font('Helvetica-Bold')
-           .text(userData.homeCourse?.toUpperCase() || 'COURSE STRATEGY', leftMargin, 20, { lineBreak: false });
+           .text(displayName, leftMargin, 15, { width: pageWidth, lineBreak: false });
         
-        doc.fontSize(11)
+        doc.fontSize(10)
            .font('Helvetica')
            .fillColor('rgba(255,255,255,0.8)')
-           .text(`Course Strategy Card — ${userData.name} — ${new Date().getFullYear()} Season`, leftMargin, 45, { lineBreak: false });
+           .text(`Course Strategy Card — ${userData.name} — ${new Date().getFullYear()} Season`, leftMargin, 38, { lineBreak: false });
 
-        doc.fontSize(9)
-           .text(`GOAL: ${analysis.summary?.currentHandicap || userData.handicap} → ${analysis.summary?.targetHandicap || 'Single Digits'} | KEY: ${analysis.summary?.keyInsight?.substring(0, 50) || 'Play smart golf'}`, leftMargin, 60, { lineBreak: false });
+        // Truncate key insight
+        const keyInsight = (analysis.summary?.keyInsight || 'Play smart golf').substring(0, 45);
+        doc.fontSize(8)
+           .text(`GOAL: ${analysis.summary?.currentHandicap || userData.handicap} → ${analysis.summary?.targetHandicap || '?'} | KEY: ${keyInsight}...`, leftMargin, 55, { width: pageWidth, lineBreak: false });
 
-        yPos = 95;
+        let yPos = 95;
 
         // Legend row
         doc.fillColor(colors.darkGreen)

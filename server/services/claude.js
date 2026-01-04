@@ -180,7 +180,7 @@ ${JSON.stringify(extractedScores, null, 2)}` : '## NO SCORECARD DATA PROVIDED'}
 ## YOUR TASK
 
 Analyze this golfer's game and return a JSON object with the following structure. Be specific and actionable. Tailor everything to their miss pattern and strengths.
-${hasCourseData ? '\nIMPORTANT: Use the ACTUAL course layout data provided above for holeByHoleStrategy. Do NOT invent or guess hole yardages/pars.' : '\nNOTE: No actual course hole data available. For holeByHoleStrategy, provide GENERAL advice by hole type (short par 4, long par 3, etc.) WITHOUT specific fake yardages. Use placeholder values like "TBD" for yards.'}
+${hasCourseData ? '\nIMPORTANT: Use the ACTUAL course layout data provided above for holeByHoleStrategy. Do NOT invent or guess hole yardages/pars.' : '\nIMPORTANT: No actual course hole data is available. Set holeByHoleStrategy to an EMPTY ARRAY []. Do not generate fake hole data.'}
 
 {
   "summary": {

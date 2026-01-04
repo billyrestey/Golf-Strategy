@@ -477,6 +477,9 @@ function calculateAggregateStats(scores) {
 // Get course hole information (pars, yardages)
 export async function getCourseDetails(courseId, userToken) {
   try {
+    console.log('Fetching course details for ID:', courseId);
+    
+    // Try the main course endpoint first
     const response = await fetch(
       `https://api2.ghin.com/api/v1/courses/${courseId}.json`,
       {
@@ -490,12 +493,66 @@ export async function getCourseDetails(courseId, userToken) {
     );
 
     if (!response.ok) {
+      console.log('Course details fetch failed:', response.status);
       return { success: false, error: 'Could not fetch course details' };
     }
 
     const data = await response.json();
+    console.log('Course API response keys:', Object.keys(data));
     
     if (data.course) {
+      console.log('Course name:', data.course.name);
+      console.log('Tees available:', data.course.tees?.length || 0);
+      
+      // Log first tee to see structure
+      if (data.course.tees?.[0]) {
+        const firstTee = data.course.tees[0];
+        console.log('First tee structure:', {
+          name: firstTee.name,
+          rating: firstTee.rating,
+          slope: firstTee.slope,
+          par: firstTee.par,
+          yardage: firstTee.yardage,
+          holesCount: firstTee.holes?.length || 0,
+          sampleHole: firstTee.holes?.[0] || 'no holes array'
+        });
+        
+        // If no holes data in tees, try to fetch tee-specific details
+        if (!firstTee.holes || firstTee.holes.length === 0) {
+          console.log('No holes in tees, trying tee-specific endpoint...');
+          
+          // Try fetching individual tee details which might have hole data
+          for (const tee of data.course.tees.slice(0, 3)) {
+            if (tee.id) {
+              try {
+                const teeResponse = await fetch(
+                  `https://api2.ghin.com/api/v1/courses/${courseId}/tees/${tee.id}.json`,
+                  {
+                    method: 'GET',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json',
+                      'Authorization': `Bearer ${userToken}`
+                    }
+                  }
+                );
+                
+                if (teeResponse.ok) {
+                  const teeData = await teeResponse.json();
+                  console.log(`Tee ${tee.name} details:`, Object.keys(teeData));
+                  if (teeData.tee?.holes?.length > 0) {
+                    tee.holes = teeData.tee.holes;
+                    console.log(`Found ${tee.holes.length} holes for ${tee.name}`);
+                  }
+                }
+              } catch (teeErr) {
+                console.log(`Could not fetch tee ${tee.id} details`);
+              }
+            }
+          }
+        }
+      }
+      
       return {
         success: true,
         course: {
