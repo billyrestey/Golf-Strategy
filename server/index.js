@@ -590,6 +590,22 @@ app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
     }
 
     console.log('Final response - scores:', scoresResult.scores?.length || 0, 'handicap:', authResult.golfer.handicapIndex);
+    
+    // Use course layout from scores if GHIN API didn't give us hole details
+    let finalCourseDetails = scoresResult.courseDetails;
+    if (!finalCourseDetails?.tees?.[0]?.holes?.length && scoresResult.courseLayoutFromScores) {
+      console.log('Using course layout extracted from scores');
+      finalCourseDetails = {
+        name: scoresResult.courseLayoutFromScores.courseName,
+        tees: [{
+          name: 'From Scores',
+          holes: scoresResult.courseLayoutFromScores.holes,
+          par: scoresResult.courseLayoutFromScores.totalPar,
+          yardage: scoresResult.courseLayoutFromScores.totalYards
+        }],
+        source: 'scores'
+      };
+    }
 
     res.json({
       success: true,
@@ -602,7 +618,8 @@ app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
       totalScores: scoresResult.totalScores,
       coursesPlayed: scoresResult.coursesPlayed,
       aggregateStats: scoresResult.aggregateStats,
-      courseDetails: scoresResult.courseDetails || null
+      courseDetails: finalCourseDetails || null,
+      courseLayoutFromScores: scoresResult.courseLayoutFromScores || null
     });
   } catch (error) {
     console.error('GHIN connect error:', error);

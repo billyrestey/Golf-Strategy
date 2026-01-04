@@ -141,25 +141,41 @@ async function generateStrategy({
 }) {
   
   const hasScoreData = extractedScores?.rounds?.length > 0;
-  const hasCourseData = courseDetails?.tees?.length > 0;
+  
+  // Check for course data - either from API or extracted from scores
+  const hasCourseData = courseDetails?.tees?.[0]?.holes?.length > 0;
   
   // Build course layout section if we have real data
   let courseLayoutSection = '';
   if (hasCourseData) {
-    // Find the most common tee (usually men's middle tees)
+    // Find the best tee set to use
     const tee = courseDetails.tees.find(t => 
       t.name?.toLowerCase().includes('white') || 
       t.name?.toLowerCase().includes('middle') ||
-      t.name?.toLowerCase().includes('member')
+      t.name?.toLowerCase().includes('member') ||
+      t.name?.toLowerCase().includes('from scores')
     ) || courseDetails.tees[0];
     
     if (tee?.holes && tee.holes.length > 0) {
+      const sourceNote = courseDetails.source === 'scores' 
+        ? ' (extracted from your score history)' 
+        : ` - ${tee.name} tees`;
+      
+      // Handle both formats - API returns par/yardage, scores returns holeNumber/par/yardage
+      const holesFormatted = tee.holes.map((h, i) => {
+        const holeNum = h.holeNumber || (i + 1);
+        const par = h.par || '?';
+        const yards = h.yardage ? `${h.yardage} yards` : 'yardage unknown';
+        const avgScore = h.avgScore ? ` (your avg: ${h.avgScore})` : '';
+        return `Hole ${holeNum}: Par ${par}, ${yards}${avgScore}`;
+      }).join('\n');
+      
       courseLayoutSection = `
-## ACTUAL COURSE LAYOUT (${courseDetails.name} - ${tee.name} tees)
-Course Rating: ${tee.rating} / Slope: ${tee.slope} / Total Yards: ${tee.yardage}
+## ACTUAL COURSE LAYOUT (${courseDetails.name}${sourceNote})
+${tee.rating ? `Course Rating: ${tee.rating} / Slope: ${tee.slope} / ` : ''}Total Par: ${tee.par || 'N/A'}${tee.yardage ? ` / Total Yards: ${tee.yardage}` : ''}
 
 HOLES:
-${tee.holes.map((h, i) => `Hole ${i + 1}: Par ${h.par}, ${h.yardage} yards`).join('\n')}
+${holesFormatted}
 `;
     }
   }

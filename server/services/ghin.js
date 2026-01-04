@@ -271,6 +271,10 @@ export async function getDetailedScores(ghinNumber, userToken, limit = 20, homeC
 
     // Aggregate stats across all rounds for analysis
     const aggregateStats = calculateAggregateStats(detailedScores);
+    
+    // Extract course layout from score data (pars and yardages per hole)
+    // This gives us real course info even if GHIN API doesn't return hole details
+    const courseLayoutFromScores = extractCourseLayoutFromScores(detailedScores, homeCourse);
 
     return {
       success: true,
@@ -281,13 +285,86 @@ export async function getDetailedScores(ghinNumber, userToken, limit = 20, homeC
       homeCoursePlays,
       coursesPlayed: sortedCourses.map(c => ({ name: c[0], count: c[1] })),
       scoresWithHoleData: detailedScores.filter(s => s.holeDetails).length,
-      aggregateStats
+      aggregateStats,
+      courseLayoutFromScores
     };
 
   } catch (error) {
     console.error('GHIN detailed scores error:', error);
     return { success: false, error: 'Failed to fetch detailed scores' };
   }
+}
+
+// Extract course layout (pars, yardages) from score records
+function extractCourseLayoutFromScores(scores, targetCourse) {
+  // Filter to scores from the target course that have hole details
+  const relevantScores = scores.filter(s => 
+    s.holeDetails && 
+    s.holeDetails.length > 0 &&
+    (s.courseName === targetCourse || s.facilityName === targetCourse)
+  );
+  
+  if (relevantScores.length === 0) {
+    console.log('No scores with hole details for course layout extraction');
+    return null;
+  }
+  
+  console.log(`Extracting course layout from ${relevantScores.length} rounds with hole data`);
+  
+  // Build hole info from scores - use most recent complete round
+  // or aggregate from multiple rounds
+  const holeInfo = {};
+  
+  relevantScores.forEach(score => {
+    score.holeDetails.forEach(hole => {
+      const holeNum = hole.holeNumber;
+      if (!holeInfo[holeNum]) {
+        holeInfo[holeNum] = {
+          holeNumber: holeNum,
+          par: hole.par,
+          yardage: hole.yardage,
+          scores: [],
+          avgScore: 0
+        };
+      }
+      // Update with latest par/yardage if we have it
+      if (hole.par) holeInfo[holeNum].par = hole.par;
+      if (hole.yardage) holeInfo[holeNum].yardage = hole.yardage;
+      if (hole.score) holeInfo[holeNum].scores.push(hole.score);
+    });
+  });
+  
+  // Convert to array and calculate averages
+  const holes = Object.values(holeInfo)
+    .sort((a, b) => a.holeNumber - b.holeNumber)
+    .map(h => ({
+      holeNumber: h.holeNumber,
+      par: h.par,
+      yardage: h.yardage || null,
+      avgScore: h.scores.length > 0 
+        ? (h.scores.reduce((a, b) => a + b, 0) / h.scores.length).toFixed(1)
+        : null,
+      roundsPlayed: h.scores.length
+    }));
+  
+  if (holes.length === 0) {
+    return null;
+  }
+  
+  const totalPar = holes.reduce((sum, h) => sum + (h.par || 0), 0);
+  const totalYards = holes.reduce((sum, h) => sum + (h.yardage || 0), 0);
+  
+  console.log(`Extracted layout: ${holes.length} holes, par ${totalPar}, ${totalYards} yards`);
+  
+  return {
+    courseName: targetCourse,
+    holes,
+    totalPar,
+    totalYards: totalYards > 0 ? totalYards : null,
+    holesWithPar: holes.filter(h => h.par).length,
+    holesWithYardage: holes.filter(h => h.yardage).length,
+    source: 'scores'
+  };
 }
 
 // Extract and normalize hole details
