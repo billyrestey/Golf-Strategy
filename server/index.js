@@ -519,8 +519,21 @@ app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
       return res.status(400).json({ error: 'GHIN email/number and password required' });
     }
 
+    console.log('GHIN connect request for:', emailOrGhin);
+
     // Authenticate with GHIN using user's credentials
     const authResult = await authenticateUser(emailOrGhin, password);
+    
+    console.log('GHIN auth result:', {
+      success: authResult.success,
+      hasToken: !!authResult.token,
+      golfer: authResult.golfer ? {
+        name: authResult.golfer.playerName,
+        handicap: authResult.golfer.handicapIndex,
+        ghinNumber: authResult.golfer.ghinNumber
+      } : null,
+      recentScoresCount: authResult.recentScores?.length || 0
+    });
     
     if (!authResult.success) {
       return res.status(401).json({ error: authResult.error });
@@ -537,15 +550,21 @@ app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
 
     // Try to fetch recent scores
     let scores = authResult.recentScores || [];
+    console.log('Scores from login response:', scores.length);
     
-    // If no scores came with login, try fetching them
+    // If no scores came with login, try fetching them separately
     if (scores.length === 0 && authResult.token && authResult.golfer.ghinNumber) {
+      console.log('Fetching scores separately for GHIN:', authResult.golfer.ghinNumber);
       try {
         const scoresResult = await getDetailedScores(
           authResult.golfer.ghinNumber, 
           authResult.token, 
           20
         );
+        console.log('Separate scores fetch result:', {
+          success: scoresResult.success,
+          count: scoresResult.scores?.length || 0
+        });
         if (scoresResult.success) {
           scores = scoresResult.scores;
         }
@@ -553,6 +572,8 @@ app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
         console.log('Could not fetch additional scores:', err.message);
       }
     }
+
+    console.log('Final response - scores:', scores.length, 'handicap:', authResult.golfer.handicapIndex);
 
     res.json({
       success: true,

@@ -98,13 +98,31 @@ export async function authenticateUser(emailOrGhin, password) {
     }
 
     const data = JSON.parse(responseText);
+    console.log('GHIN response keys:', Object.keys(data));
     
     if (data.golfer_user) {
-      // Get golfer info - may be in golfers array or directly on golfer_user
-      const golfers = data.golfer_user.golfers || [];
-      const primaryGolfer = golfers[0] || {};
+      console.log('golfer_user keys:', Object.keys(data.golfer_user));
       
-      console.log('GHIN auth successful for:', primaryGolfer.player_name || data.golfer_user.first_name);
+      // Get golfer info from golfers array (this is where the real data is)
+      const golfers = data.golfer_user.golfers || [];
+      console.log('Number of golfers:', golfers.length);
+      
+      const primaryGolfer = golfers[0] || {};
+      console.log('Primary golfer keys:', Object.keys(primaryGolfer));
+      console.log('Primary golfer data:', JSON.stringify({
+        player_name: primaryGolfer.player_name,
+        ghin_number: primaryGolfer.ghin_number,
+        handicap_index: primaryGolfer.handicap_index,
+        display: primaryGolfer.display,
+        club_name: primaryGolfer.club_name
+      }));
+      
+      // handicap_index might be in 'display' field as string like "15.2"
+      const handicapValue = primaryGolfer.handicap_index || 
+                           primaryGolfer.display || 
+                           data.golfer_user.handicap_index;
+      
+      console.log('Extracted handicap:', handicapValue);
       
       return {
         success: true,
@@ -116,7 +134,7 @@ export async function authenticateUser(emailOrGhin, password) {
           lastName: data.golfer_user.last_name || primaryGolfer.last_name,
           playerName: primaryGolfer.player_name,
           email: data.golfer_user.email,
-          handicapIndex: primaryGolfer.handicap_index || data.golfer_user.handicap_index,
+          handicapIndex: handicapValue,
           lowHandicapIndex: primaryGolfer.low_hi_display || primaryGolfer.low_hi,
           club: primaryGolfer.club_name || data.golfer_user.club_name,
           association: primaryGolfer.golf_association_name,
