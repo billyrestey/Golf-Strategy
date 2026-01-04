@@ -1782,7 +1782,7 @@ export default function App() {
         .step-content {
           max-width: 560px;
           margin: 0 auto;
-          padding: 40px 24px 80px;
+          padding: 20px 24px 60px;
           position: relative;
         }
         
