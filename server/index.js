@@ -531,14 +531,34 @@ app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
       updateUser(req.user.userId, {
         ghin_number: authResult.golfer.ghinNumber,
         handicap: authResult.golfer.handicapIndex,
-        name: `${authResult.golfer.firstName} ${authResult.golfer.lastName}`
+        name: authResult.golfer.playerName || `${authResult.golfer.firstName} ${authResult.golfer.lastName}`
       });
+    }
+
+    // Try to fetch recent scores
+    let scores = authResult.recentScores || [];
+    
+    // If no scores came with login, try fetching them
+    if (scores.length === 0 && authResult.token && authResult.golfer.ghinNumber) {
+      try {
+        const scoresResult = await getDetailedScores(
+          authResult.golfer.ghinNumber, 
+          authResult.token, 
+          20
+        );
+        if (scoresResult.success) {
+          scores = scoresResult.scores;
+        }
+      } catch (err) {
+        console.log('Could not fetch additional scores:', err.message);
+      }
     }
 
     res.json({
       success: true,
       golfer: authResult.golfer,
-      ghinToken: authResult.token // Client stores this for fetching scores
+      ghinToken: authResult.token,
+      scores: scores
     });
   } catch (error) {
     console.error('GHIN connect error:', error);

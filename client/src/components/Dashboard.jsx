@@ -618,82 +618,252 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
         </div>
       )}
 
-      {/* GHIN Link Modal - Now Handicap Update Modal */}
+      {/* GHIN Link Modal - Supports both manual entry and GHIN login */}
       {showGHINModal && (
         <div className="modal-overlay" onClick={() => setShowGHINModal(false)}>
           <div className="modal-content ghin-modal" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowGHINModal(false)}>×</button>
             <h2>Update Stroke Index</h2>
-            <p className="modal-description">
-              Keep your stroke index up to date to track your progress toward your goals.
-            </p>
             
-            <div className="form-row">
-              <div className="form-group">
-                <label>Current Stroke Index</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={ghinNumber}
-                  onChange={e => setGhinNumber(e.target.value)}
-                  placeholder="14.7"
-                />
-              </div>
-              <div className="form-group">
-                <label>Target Stroke Index</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={targetStrokeIndex}
-                  onChange={e => setTargetStrokeIndex(e.target.value)}
-                  placeholder="10.0"
-                />
-              </div>
-            </div>
-            
-            {ghinError && (
-              <div className="ghin-error">{ghinError}</div>
-            )}
-            
-            <button 
-              className="submit-btn"
-              onClick={async () => {
-                if (!ghinNumber.trim()) return;
-                setGhinLoading(true);
-                try {
-                  const response = await fetch(`${API_URL}/api/auth/profile`, {
-                    method: 'PUT',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ 
-                      handicap: parseFloat(ghinNumber),
-                      target_handicap: targetStrokeIndex ? parseFloat(targetStrokeIndex) : null
-                    })
-                  });
-                  if (response.ok) {
-                    setShowGHINModal(false);
-                    setGhinNumber('');
-                    setTargetStrokeIndex('');
-                    if (refreshUser) refreshUser();
-                  } else {
-                    setGhinError('Failed to update stroke index');
-                  }
-                } catch (error) {
-                  setGhinError('Failed to update stroke index');
-                } finally {
-                  setGhinLoading(false);
-                }
-              }}
-              disabled={ghinLoading || !ghinNumber.trim()}
-            >
-              {ghinLoading ? 'Saving...' : 'Update Stroke Index'}
-            </button>
-            
-            <p className="modal-hint">
-              💡 Tip: Check your official stroke index on the <a href="https://www.ghin.com" target="_blank" rel="noopener noreferrer">GHIN website</a> or app.
-            </p>
+            {!ghinData ? (
+              <>
+                {/* GHIN Connect Option */}
+                <div className="ghin-connect-section">
+                  <button 
+                    className="ghin-connect-btn"
+                    onClick={() => setGhinData({ showLogin: true })}
+                  >
+                    <span className="ghin-icon">⛳</span>
+                    <span>Connect GHIN Account</span>
+                    <span className="ghin-tag">Auto-sync</span>
+                  </button>
+                  <p className="ghin-connect-hint">Automatically sync your handicap from GHIN</p>
+                </div>
+                
+                <div className="modal-divider">
+                  <span>or enter manually</span>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Current Stroke Index</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={ghinNumber}
+                      onChange={e => setGhinNumber(e.target.value)}
+                      placeholder="14.7"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Target Stroke Index</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={targetStrokeIndex}
+                      onChange={e => setTargetStrokeIndex(e.target.value)}
+                      placeholder="10.0"
+                    />
+                  </div>
+                </div>
+                
+                {ghinError && (
+                  <div className="ghin-error">{ghinError}</div>
+                )}
+                
+                <button 
+                  className="submit-btn"
+                  onClick={async () => {
+                    if (!ghinNumber.trim()) return;
+                    setGhinLoading(true);
+                    try {
+                      const response = await fetch(`${API_URL}/api/auth/profile`, {
+                        method: 'PUT',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ 
+                          handicap: parseFloat(ghinNumber),
+                          target_handicap: targetStrokeIndex ? parseFloat(targetStrokeIndex) : null
+                        })
+                      });
+                      if (response.ok) {
+                        setShowGHINModal(false);
+                        setGhinNumber('');
+                        setTargetStrokeIndex('');
+                        if (refreshUser) refreshUser();
+                      } else {
+                        setGhinError('Failed to update stroke index');
+                      }
+                    } catch (error) {
+                      setGhinError('Failed to update stroke index');
+                    } finally {
+                      setGhinLoading(false);
+                    }
+                  }}
+                  disabled={ghinLoading || !ghinNumber.trim()}
+                >
+                  {ghinLoading ? 'Saving...' : 'Update Stroke Index'}
+                </button>
+              </>
+            ) : ghinData.showLogin ? (
+              <>
+                {/* GHIN Login Form */}
+                <p className="modal-description">
+                  Enter your GHIN credentials to sync your handicap and recent scores.
+                </p>
+                
+                <div className="form-group">
+                  <label>GHIN Email or Number</label>
+                  <input
+                    type="text"
+                    value={ghinData.email || ''}
+                    onChange={e => setGhinData({ ...ghinData, email: e.target.value })}
+                    placeholder="email@example.com or 1234567"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>GHIN Password</label>
+                  <input
+                    type="password"
+                    value={ghinData.password || ''}
+                    onChange={e => setGhinData({ ...ghinData, password: e.target.value })}
+                    placeholder="Your GHIN password"
+                  />
+                </div>
+                
+                {ghinError && (
+                  <div className="ghin-error">{ghinError}</div>
+                )}
+                
+                <button 
+                  className="submit-btn ghin-submit"
+                  onClick={async () => {
+                    if (!ghinData.email || !ghinData.password) return;
+                    setGhinLoading(true);
+                    setGhinError('');
+                    try {
+                      const response = await fetch(`${API_URL}/api/ghin/connect`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ 
+                          emailOrGhin: ghinData.email,
+                          password: ghinData.password
+                        })
+                      });
+                      const data = await response.json();
+                      if (data.success) {
+                        // Show success and update form with fetched data
+                        setGhinData({ 
+                          connected: true, 
+                          golfer: data.golfer,
+                          scores: data.scores 
+                        });
+                        // Update user profile with GHIN data
+                        await fetch(`${API_URL}/api/auth/profile`, {
+                          method: 'PUT',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                          },
+                          body: JSON.stringify({ 
+                            handicap: data.golfer.handicapIndex,
+                            ghin_number: data.golfer.ghinNumber,
+                            name: data.golfer.playerName || `${data.golfer.firstName} ${data.golfer.lastName}`
+                          })
+                        });
+                        if (refreshUser) refreshUser();
+                      } else {
+                        setGhinError(data.error || 'Failed to connect to GHIN');
+                      }
+                    } catch (error) {
+                      setGhinError('Failed to connect to GHIN');
+                    } finally {
+                      setGhinLoading(false);
+                    }
+                  }}
+                  disabled={ghinLoading || !ghinData.email || !ghinData.password}
+                >
+                  {ghinLoading ? 'Connecting...' : 'Connect & Sync'}
+                </button>
+                
+                <button 
+                  className="back-btn"
+                  onClick={() => setGhinData(null)}
+                >
+                  ← Back to manual entry
+                </button>
+                
+                <p className="ghin-privacy">
+                  🔒 Your credentials are used only to fetch your data and are not stored.
+                </p>
+              </>
+            ) : ghinData.connected ? (
+              <>
+                {/* GHIN Connected Success */}
+                <div className="ghin-success">
+                  <div className="success-icon">✓</div>
+                  <h3>GHIN Connected!</h3>
+                  <div className="ghin-profile">
+                    <p className="golfer-name">{ghinData.golfer?.playerName || `${ghinData.golfer?.firstName} ${ghinData.golfer?.lastName}`}</p>
+                    <p className="golfer-club">{ghinData.golfer?.club}</p>
+                    <div className="handicap-display">
+                      <span className="handicap-label">Handicap Index</span>
+                      <span className="handicap-value">{ghinData.golfer?.handicapIndex}</span>
+                    </div>
+                  </div>
+                  {ghinData.scores?.length > 0 && (
+                    <p className="scores-imported">📊 {ghinData.scores.length} recent rounds imported</p>
+                  )}
+                </div>
+                
+                <div className="form-group">
+                  <label>Target Stroke Index</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={targetStrokeIndex}
+                    onChange={e => setTargetStrokeIndex(e.target.value)}
+                    placeholder="10.0"
+                  />
+                </div>
+                
+                <button 
+                  className="submit-btn"
+                  onClick={async () => {
+                    setGhinLoading(true);
+                    try {
+                      await fetch(`${API_URL}/api/auth/profile`, {
+                        method: 'PUT',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ 
+                          target_handicap: targetStrokeIndex ? parseFloat(targetStrokeIndex) : null
+                        })
+                      });
+                      setShowGHINModal(false);
+                      setGhinData(null);
+                      setTargetStrokeIndex('');
+                      if (refreshUser) refreshUser();
+                    } catch (error) {
+                      setGhinError('Failed to save target');
+                    } finally {
+                      setGhinLoading(false);
+                    }
+                  }}
+                  disabled={ghinLoading}
+                >
+                  {ghinLoading ? 'Saving...' : 'Save & Close'}
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
       )}
@@ -1408,6 +1578,165 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
           border-radius: 8px;
           margin-bottom: 16px;
           font-size: 14px;
+        }
+
+        .ghin-connect-section {
+          margin-bottom: 20px;
+        }
+
+        .ghin-connect-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          padding: 16px;
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.2), rgba(124, 185, 124, 0.1));
+          border: 2px solid rgba(124, 185, 124, 0.4);
+          border-radius: 10px;
+          color: #fff;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s ease;
+        }
+
+        .ghin-connect-btn:hover {
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.3), rgba(124, 185, 124, 0.15));
+          border-color: #7cb97c;
+          transform: translateY(-2px);
+        }
+
+        .ghin-connect-btn .ghin-icon {
+          font-size: 20px;
+        }
+
+        .ghin-connect-btn .ghin-tag {
+          background: #7cb97c;
+          color: #0d1f0d;
+          font-size: 10px;
+          padding: 3px 8px;
+          border-radius: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .ghin-connect-hint {
+          text-align: center;
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.5);
+          margin-top: 8px;
+        }
+
+        .modal-divider {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin: 20px 0;
+        }
+
+        .modal-divider::before,
+        .modal-divider::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-divider span {
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.4);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .ghin-submit {
+          background: linear-gradient(135deg, #7cb97c, #5a9a5a) !important;
+        }
+
+        .back-btn {
+          width: 100%;
+          padding: 12px;
+          margin-top: 12px;
+          background: transparent;
+          border: none;
+          color: rgba(240, 244, 232, 0.6);
+          font-size: 14px;
+          cursor: pointer;
+          font-family: inherit;
+        }
+
+        .back-btn:hover {
+          color: #fff;
+        }
+
+        .ghin-privacy {
+          text-align: center;
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.5);
+          margin-top: 16px;
+        }
+
+        .ghin-success {
+          text-align: center;
+          margin-bottom: 24px;
+        }
+
+        .ghin-success .success-icon {
+          width: 60px;
+          height: 60px;
+          background: linear-gradient(135deg, #7cb97c, #5a9a5a);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 32px;
+          color: #0d1f0d;
+          margin: 0 auto 16px;
+        }
+
+        .ghin-success h3 {
+          font-size: 20px;
+          margin-bottom: 16px;
+        }
+
+        .ghin-success .golfer-name {
+          font-size: 18px;
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+
+        .ghin-success .golfer-club {
+          color: rgba(240, 244, 232, 0.6);
+          font-size: 14px;
+          margin-bottom: 16px;
+        }
+
+        .ghin-success .handicap-display {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .ghin-success .handicap-label {
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.5);
+          text-transform: uppercase;
+        }
+
+        .ghin-success .handicap-value {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 36px;
+          font-weight: 700;
+          color: #7cb97c;
+        }
+
+        .ghin-success .scores-imported {
+          margin-top: 16px;
+          font-size: 14px;
+          color: #7cb97c;
         }
 
         .ghin-result {

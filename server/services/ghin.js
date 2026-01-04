@@ -30,8 +30,9 @@ async function authenticateAdmin() {
         user: {
           email_or_ghin: email,
           password: password,
-          remember_me: true
-        }
+          remember_me: 'true'
+        },
+        token: 'golfstrategy'  // Required arbitrary token
       })
     });
 
@@ -72,48 +73,58 @@ export async function authenticateUser(emailOrGhin, password) {
         user: {
           email_or_ghin: emailOrGhin,
           password: password,
-          remember_me: true
-        }
+          remember_me: 'true'
+        },
+        token: 'golfstrategy'  // Required arbitrary token
       })
     });
 
     const responseText = await response.text();
     console.log('GHIN auth response status:', response.status);
-    console.log('GHIN auth response:', responseText.substring(0, 500));
 
     if (!response.ok) {
-      // Try to parse error message
       let errorMsg = 'Invalid GHIN credentials. Please check your email/GHIN number and password.';
       try {
         const errorData = JSON.parse(responseText);
-        if (errorData.error || errorData.message) {
+        if (errorData.errors) {
+          errorMsg = Object.values(errorData.errors).flat().join(', ');
+        } else if (errorData.error || errorData.message) {
           errorMsg = errorData.error || errorData.message;
         }
       } catch (e) {
         // Use default error message
       }
-      return { 
-        success: false, 
-        error: errorMsg
-      };
+      return { success: false, error: errorMsg };
     }
 
     const data = JSON.parse(responseText);
     
     if (data.golfer_user) {
-      console.log('GHIN auth successful for:', data.golfer_user.first_name, data.golfer_user.last_name);
+      // Get golfer info - may be in golfers array or directly on golfer_user
+      const golfers = data.golfer_user.golfers || [];
+      const primaryGolfer = golfers[0] || {};
+      
+      console.log('GHIN auth successful for:', primaryGolfer.player_name || data.golfer_user.first_name);
+      
       return {
         success: true,
         token: data.golfer_user.golfer_user_token,
         golfer: {
-          id: data.golfer_user.golfer_id,
-          ghinNumber: data.golfer_user.ghin_number || data.golfer_user.golfer_id,
-          firstName: data.golfer_user.first_name,
-          lastName: data.golfer_user.last_name,
+          id: primaryGolfer.id || data.golfer_user.golfer_id,
+          ghinNumber: primaryGolfer.ghin_number || data.golfer_user.ghin_number || data.golfer_user.golfer_id,
+          firstName: data.golfer_user.first_name || primaryGolfer.first_name,
+          lastName: data.golfer_user.last_name || primaryGolfer.last_name,
+          playerName: primaryGolfer.player_name,
           email: data.golfer_user.email,
-          handicapIndex: data.golfer_user.handicap_index,
-          club: data.golfer_user.club_name
-        }
+          handicapIndex: primaryGolfer.handicap_index || data.golfer_user.handicap_index,
+          lowHandicapIndex: primaryGolfer.low_hi_display || primaryGolfer.low_hi,
+          club: primaryGolfer.club_name || data.golfer_user.club_name,
+          association: primaryGolfer.golf_association_name,
+          softCap: primaryGolfer.soft_cap,
+          hardCap: primaryGolfer.hard_cap
+        },
+        // Include any scores that came with the login response
+        recentScores: primaryGolfer.recent_scores || []
       };
     }
 
@@ -148,9 +159,15 @@ export async function getDetailedScores(ghinNumber, userToken, limit = 20) {
     }
 
     const scoresData = await scoresResponse.json();
+    console.log('Raw GHIN scores response keys:', Object.keys(scoresData));
     
     if (!scoresData.scores || scoresData.scores.length === 0) {
       return { success: true, scores: [], message: 'No scores found' };
+    }
+
+    // Log first score to see available fields
+    if (scoresData.scores[0]) {
+      console.log('Sample score fields:', Object.keys(scoresData.scores[0]));
     }
 
     // For each score, try to get hole-by-hole details
@@ -160,66 +177,267 @@ export async function getDetailedScores(ghinNumber, userToken, limit = 20) {
           id: score.id,
           date: score.played_at,
           courseName: score.course_name,
+          facilityName: score.facility_name,
           courseId: score.course_id,
           totalScore: score.adjusted_gross_score,
+          rawScore: score.raw_score,
           courseRating: score.course_rating,
           slopeRating: score.slope_rating,
           differential: score.differential,
           tees: score.tee_name,
           numberOfHoles: score.number_of_holes,
           scoreType: score.score_type,
-          // Stats if available
+          
+          // Round stats (if user entered them)
           fairwaysHit: score.fairways_hit,
-          gir: score.gir,
+          fairwaysPossible: score.fairways_possible,
+          greensInRegulation: score.gir || score.greens_in_regulation,
+          girPossible: score.gir_possible,
           putts: score.putts,
-          holeScores: null
+          penalties: score.penalties,
+          
+          // Hole-by-hole data
+          holeDetails: null
         };
 
-        // Try to get hole-by-hole details for this score
-        try {
-          const detailResponse = await fetch(
-            `https://api2.ghin.com/api/v1/scores/${score.id}.json`,
-            {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${userToken}`
+        // Check if hole_details came with the score list
+        if (score.hole_details && score.hole_details.length > 0) {
+          baseScore.holeDetails = extractHoleDetails(score.hole_details);
+          console.log(`Score ${score.id} has ${score.hole_details.length} hole details inline`);
+        } else {
+          // Try to fetch hole-by-hole details for this score
+          try {
+            const detailResponse = await fetch(
+              `https://api2.ghin.com/api/v1/scores/${score.id}.json`,
+              {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                  'Authorization': `Bearer ${userToken}`
+                }
+              }
+            );
+
+            if (detailResponse.ok) {
+              const detailData = await detailResponse.json();
+              const holes = detailData.score?.hole_details || 
+                           detailData.score?.holes || 
+                           detailData.hole_details;
+              if (holes && holes.length > 0) {
+                baseScore.holeDetails = extractHoleDetails(holes);
+                console.log(`Score ${score.id} fetched ${holes.length} hole details`);
               }
             }
-          );
-
-          if (detailResponse.ok) {
-            const detailData = await detailResponse.json();
-            if (detailData.score?.hole_scores || detailData.score?.holes) {
-              baseScore.holeScores = detailData.score.hole_scores || detailData.score.holes;
-              baseScore.holeDetails = detailData.score.hole_details;
-            }
+          } catch (err) {
+            // Hole details not available for this score
           }
-        } catch (err) {
-          // Hole details not available for this score
-          console.log(`No hole details for score ${score.id}`);
         }
 
         return baseScore;
       })
     );
 
-    // Also try to get course details for the home course
-    const coursesPlayed = [...new Set(detailedScores.map(s => s.courseName))];
-    
+    // Aggregate stats across all rounds for analysis
+    const aggregateStats = calculateAggregateStats(detailedScores);
+
     return {
       success: true,
       scores: detailedScores,
       totalScores: scoresData.total_scores || detailedScores.length,
-      coursesPlayed,
-      scoresWithHoleData: detailedScores.filter(s => s.holeScores).length
+      coursesPlayed: [...new Set(detailedScores.map(s => s.courseName))],
+      scoresWithHoleData: detailedScores.filter(s => s.holeDetails).length,
+      aggregateStats
     };
 
   } catch (error) {
     console.error('GHIN detailed scores error:', error);
     return { success: false, error: 'Failed to fetch detailed scores' };
   }
+}
+
+// Extract and normalize hole details
+function extractHoleDetails(holes) {
+  return holes.map(hole => ({
+    holeNumber: hole.hole_number,
+    par: hole.par,
+    yardage: hole.yardage,
+    score: hole.raw_score || hole.adjusted_gross_score || hole.score,
+    adjustedScore: hole.adjusted_gross_score,
+    
+    // Shot-by-shot stats (if entered by user)
+    fairwayHit: hole.fairway_hit,           // true/false/null
+    fairwayMiss: hole.fairway_miss,         // 'left', 'right', 'short', null
+    greenInRegulation: hole.gir,            // true/false
+    greenMiss: hole.green_miss,             // 'left', 'right', 'short', 'long', null
+    putts: hole.putts,
+    penalties: hole.penalties,
+    
+    // Sand/bunker
+    sandShots: hole.sand_shots,
+    sandSaves: hole.sand_save,
+    
+    // Calculated
+    overUnder: (hole.raw_score || hole.adjusted_gross_score) - hole.par
+  }));
+}
+
+// Calculate aggregate statistics for analysis
+function calculateAggregateStats(scores) {
+  const stats = {
+    totalRounds: scores.length,
+    averageScore: 0,
+    averageDifferential: 0,
+    
+    // Hole-by-hole patterns (only from rounds with detail)
+    holePatterns: {},         // hole number -> average over/under
+    troubleHoles: [],         // holes consistently over par
+    birdieHoles: [],          // holes with birdie opportunities
+    
+    // Miss patterns
+    fairwayMissLeft: 0,
+    fairwayMissRight: 0,
+    greenMissShort: 0,
+    greenMissLong: 0,
+    greenMissLeft: 0,
+    greenMissRight: 0,
+    
+    // Overall stats
+    avgFairwaysHit: null,
+    avgGIR: null,
+    avgPutts: null,
+    
+    // Course-specific data
+    courseStats: {}
+  };
+
+  if (scores.length === 0) return stats;
+
+  // Calculate averages
+  stats.averageScore = scores.reduce((sum, s) => sum + (s.totalScore || 0), 0) / scores.length;
+  stats.averageDifferential = scores.reduce((sum, s) => sum + (s.differential || 0), 0) / scores.length;
+
+  // Process hole-by-hole data
+  const scoresWithHoles = scores.filter(s => s.holeDetails && s.holeDetails.length > 0);
+  
+  if (scoresWithHoles.length > 0) {
+    // Aggregate hole patterns
+    const holeData = {};
+    let totalFairwayMissLeft = 0, totalFairwayMissRight = 0;
+    let totalGreenMissShort = 0, totalGreenMissLong = 0;
+    let totalGreenMissLeft = 0, totalGreenMissRight = 0;
+    let missCount = 0;
+
+    scoresWithHoles.forEach(score => {
+      const courseName = score.courseName;
+      
+      // Initialize course stats
+      if (!stats.courseStats[courseName]) {
+        stats.courseStats[courseName] = {
+          rounds: 0,
+          avgScore: 0,
+          holeAverages: {}
+        };
+      }
+      stats.courseStats[courseName].rounds++;
+
+      score.holeDetails.forEach(hole => {
+        const holeNum = hole.holeNumber;
+        
+        // Track hole performance
+        if (!holeData[holeNum]) {
+          holeData[holeNum] = { total: 0, count: 0, par: hole.par };
+        }
+        if (hole.score) {
+          holeData[holeNum].total += hole.overUnder;
+          holeData[holeNum].count++;
+        }
+
+        // Track miss patterns
+        if (hole.fairwayMiss === 'left') totalFairwayMissLeft++;
+        if (hole.fairwayMiss === 'right') totalFairwayMissRight++;
+        if (hole.greenMiss === 'short') totalGreenMissShort++;
+        if (hole.greenMiss === 'long') totalGreenMissLong++;
+        if (hole.greenMiss === 'left') totalGreenMissLeft++;
+        if (hole.greenMiss === 'right') totalGreenMissRight++;
+        if (hole.fairwayMiss || hole.greenMiss) missCount++;
+
+        // Course-specific hole averages
+        if (!stats.courseStats[courseName].holeAverages[holeNum]) {
+          stats.courseStats[courseName].holeAverages[holeNum] = { total: 0, count: 0, par: hole.par };
+        }
+        if (hole.score) {
+          stats.courseStats[courseName].holeAverages[holeNum].total += hole.score;
+          stats.courseStats[courseName].holeAverages[holeNum].count++;
+        }
+      });
+    });
+
+    // Calculate hole patterns
+    Object.entries(holeData).forEach(([holeNum, data]) => {
+      if (data.count > 0) {
+        const avgOverUnder = data.total / data.count;
+        stats.holePatterns[holeNum] = {
+          avgOverUnder: Math.round(avgOverUnder * 100) / 100,
+          par: data.par,
+          sampleSize: data.count
+        };
+        
+        // Identify trouble holes (avg > +0.5 over par)
+        if (avgOverUnder > 0.5) {
+          stats.troubleHoles.push({ hole: parseInt(holeNum), avgOver: avgOverUnder, par: data.par });
+        }
+        // Identify birdie opportunities (avg < +0.3)
+        if (avgOverUnder < 0.3 && data.par >= 4) {
+          stats.birdieHoles.push({ hole: parseInt(holeNum), avgOver: avgOverUnder, par: data.par });
+        }
+      }
+    });
+
+    // Sort trouble holes by severity
+    stats.troubleHoles.sort((a, b) => b.avgOver - a.avgOver);
+    stats.birdieHoles.sort((a, b) => a.avgOver - b.avgOver);
+
+    // Calculate miss pattern percentages
+    if (missCount > 0) {
+      stats.fairwayMissLeft = Math.round((totalFairwayMissLeft / missCount) * 100);
+      stats.fairwayMissRight = Math.round((totalFairwayMissRight / missCount) * 100);
+      stats.greenMissShort = Math.round((totalGreenMissShort / missCount) * 100);
+      stats.greenMissLong = Math.round((totalGreenMissLong / missCount) * 100);
+      stats.greenMissLeft = Math.round((totalGreenMissLeft / missCount) * 100);
+      stats.greenMissRight = Math.round((totalGreenMissRight / missCount) * 100);
+    }
+
+    // Course-specific averages
+    Object.values(stats.courseStats).forEach(course => {
+      Object.entries(course.holeAverages).forEach(([hole, data]) => {
+        if (data.count > 0) {
+          course.holeAverages[hole] = {
+            avgScore: Math.round((data.total / data.count) * 10) / 10,
+            par: data.par,
+            avgOverUnder: Math.round(((data.total / data.count) - data.par) * 10) / 10
+          };
+        }
+      });
+    });
+  }
+
+  // Calculate overall stats from round-level data
+  const roundsWithFairways = scores.filter(s => s.fairwaysHit != null);
+  const roundsWithGIR = scores.filter(s => s.greensInRegulation != null);
+  const roundsWithPutts = scores.filter(s => s.putts != null);
+
+  if (roundsWithFairways.length > 0) {
+    stats.avgFairwaysHit = Math.round(roundsWithFairways.reduce((sum, s) => sum + s.fairwaysHit, 0) / roundsWithFairways.length * 10) / 10;
+  }
+  if (roundsWithGIR.length > 0) {
+    stats.avgGIR = Math.round(roundsWithGIR.reduce((sum, s) => sum + s.greensInRegulation, 0) / roundsWithGIR.length * 10) / 10;
+  }
+  if (roundsWithPutts.length > 0) {
+    stats.avgPutts = Math.round(roundsWithPutts.reduce((sum, s) => sum + s.putts, 0) / roundsWithPutts.length * 10) / 10;
+  }
+
+  return stats;
 }
 
 // Get course hole information (pars, yardages)
