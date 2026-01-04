@@ -171,7 +171,7 @@ app.get('/api/health', (req, res) => {
 // Main analysis endpoint - supports both preview and authenticated modes
 app.post('/api/analyze', analysisLimiter, optionalAuth, upload.array('scorecards', 10), handleMulterError, checkTotalSize, async (req, res) => {
   try {
-    const { name, handicap, homeCourse, missPattern, missDescription, strengths, preview, ghinScores } = req.body;
+    const { name, handicap, homeCourse, missPattern, missDescription, strengths, preview, ghinScores, courseDetails } = req.body;
     const isPreview = preview === 'true';
     const userId = req.user?.userId;
 
@@ -195,6 +195,9 @@ app.post('/api/analyze', analysisLimiter, optionalAuth, upload.array('scorecards
     
     // Parse GHIN scores if provided
     const parsedGhinScores = ghinScores ? (typeof ghinScores === 'string' ? JSON.parse(ghinScores) : ghinScores) : null;
+    
+    // Parse course details if provided
+    const parsedCourseDetails = courseDetails ? (typeof courseDetails === 'string' ? JSON.parse(courseDetails) : courseDetails) : null;
     
     // Convert uploaded files to base64
     const scorecardImages = req.files?.map(file => ({
@@ -220,7 +223,8 @@ app.post('/api/analyze', analysisLimiter, optionalAuth, upload.array('scorecards
       missDescription: missDescription || '',
       strengths: parsedStrengths || [],
       scorecardImages,
-      ghinScores: parsedGhinScores
+      ghinScores: parsedGhinScores,
+      courseDetails: parsedCourseDetails
     });
 
     // Preview mode - just return analysis, don't save or charge
@@ -564,8 +568,22 @@ app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
           success: scoresResult.success,
           count: scoresResult.scores?.length || 0,
           homeCourse: scoresResult.homeCourse,
+          homeCourseId: scoresResult.homeCourseId,
           homeCoursePlays: scoresResult.homeCoursePlays
         });
+        
+        // Try to fetch actual course hole data if we have a course ID
+        if (scoresResult.homeCourseId && authResult.token) {
+          try {
+            const courseDetails = await getCourseDetails(scoresResult.homeCourseId, authResult.token);
+            if (courseDetails.success) {
+              scoresResult.courseDetails = courseDetails.course;
+              console.log('Fetched course details for:', courseDetails.course.name);
+            }
+          } catch (courseErr) {
+            console.log('Could not fetch course details:', courseErr.message);
+          }
+        }
       } catch (err) {
         console.log('Could not fetch scores:', err.message);
       }
@@ -579,14 +597,55 @@ app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
       ghinToken: authResult.token,
       scores: scoresResult.scores || [],
       homeCourse: scoresResult.homeCourse,
+      homeCourseId: scoresResult.homeCourseId,
       homeCoursePlays: scoresResult.homeCoursePlays,
       totalScores: scoresResult.totalScores,
       coursesPlayed: scoresResult.coursesPlayed,
-      aggregateStats: scoresResult.aggregateStats
+      aggregateStats: scoresResult.aggregateStats,
+      courseDetails: scoresResult.courseDetails || null
     });
   } catch (error) {
     console.error('GHIN connect error:', error);
     res.status(500).json({ error: 'Failed to connect GHIN account' });
+  }
+});
+
+// Refresh handicap from GHIN for already-connected users
+// This uses the admin lookup (no password needed) since we have their GHIN number
+app.post('/api/ghin/refresh', authenticateToken, async (req, res) => {
+  try {
+    const user = getUserById(req.user.userId);
+    
+    if (!user?.ghin_number) {
+      return res.status(400).json({ error: 'No GHIN number linked to account' });
+    }
+
+    console.log('Refreshing handicap for GHIN:', user.ghin_number);
+    
+    // Use admin lookup to get current handicap (doesn't require user's password)
+    const golferData = await lookupGHIN(user.ghin_number);
+    
+    if (golferData.success && golferData.golfer) {
+      const newHandicap = golferData.golfer.handicapIndex;
+      
+      // Update user's handicap in database
+      updateUser(req.user.userId, {
+        handicap: newHandicap
+      });
+      
+      console.log('Updated handicap to:', newHandicap);
+      
+      res.json({
+        success: true,
+        handicap: newHandicap,
+        golfer: golferData.golfer
+      });
+    } else {
+      res.status(400).json({ error: 'Could not fetch current handicap from GHIN' });
+    }
+  } catch (error) {
+    console.error('GHIN refresh error:', error);
+    res.status(500).json({ error: 'Failed to refresh handicap' });
   }
 });
 

@@ -625,9 +625,123 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
             <button className="modal-close" onClick={() => setShowGHINModal(false)}>×</button>
             <h2>Update Stroke Index</h2>
             
-            {!ghinData ? (
+            {/* If user already has GHIN connected, show sync option */}
+            {user?.ghin_number && !ghinData?.showLogin ? (
               <>
-                {/* GHIN Connect Option */}
+                <div className="ghin-connected-banner">
+                  <span className="ghin-connected-icon">✓</span>
+                  <div className="ghin-connected-text">
+                    <strong>GHIN Connected</strong>
+                    <span>GHIN #{user.ghin_number}</span>
+                  </div>
+                  <button 
+                    className="ghin-refresh-btn"
+                    onClick={async () => {
+                      setRefreshingHandicap(true);
+                      setGhinError('');
+                      try {
+                        const response = await fetch(`${API_URL}/api/ghin/refresh`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                          }
+                        });
+                        const data = await response.json();
+                        if (response.ok && data.handicap) {
+                          if (refreshUser) refreshUser();
+                          setShowGHINModal(false);
+                        } else {
+                          // Token expired, need to re-login
+                          setGhinData({ showLogin: true });
+                        }
+                      } catch (error) {
+                        setGhinError('Failed to refresh. Try reconnecting.');
+                        setGhinData({ showLogin: true });
+                      } finally {
+                        setRefreshingHandicap(false);
+                      }
+                    }}
+                    disabled={refreshingHandicap}
+                  >
+                    {refreshingHandicap ? 'Syncing...' : '↻ Sync Now'}
+                  </button>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Current Stroke Index</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={ghinNumber || user?.handicap || ''}
+                      onChange={e => setGhinNumber(e.target.value)}
+                      placeholder="14.7"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Target Stroke Index</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={targetStrokeIndex || user?.target_handicap || ''}
+                      onChange={e => setTargetStrokeIndex(e.target.value)}
+                      placeholder="10.0"
+                    />
+                  </div>
+                </div>
+                
+                {ghinError && (
+                  <div className="ghin-error">{ghinError}</div>
+                )}
+                
+                <button 
+                  className="submit-btn"
+                  onClick={async () => {
+                    const newHandicap = ghinNumber || user?.handicap;
+                    if (!newHandicap) return;
+                    setGhinLoading(true);
+                    try {
+                      const response = await fetch(`${API_URL}/api/auth/profile`, {
+                        method: 'PUT',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ 
+                          handicap: parseFloat(newHandicap),
+                          target_handicap: targetStrokeIndex ? parseFloat(targetStrokeIndex) : (user?.target_handicap || null)
+                        })
+                      });
+                      if (response.ok) {
+                        setShowGHINModal(false);
+                        setGhinNumber('');
+                        setTargetStrokeIndex('');
+                        if (refreshUser) refreshUser();
+                      } else {
+                        setGhinError('Failed to update stroke index');
+                      }
+                    } catch (error) {
+                      setGhinError('Failed to update stroke index');
+                    } finally {
+                      setGhinLoading(false);
+                    }
+                  }}
+                  disabled={ghinLoading}
+                >
+                  {ghinLoading ? 'Saving...' : 'Update Stroke Index'}
+                </button>
+                
+                <button 
+                  className="link-btn disconnect-link"
+                  onClick={() => setGhinData({ showLogin: true })}
+                >
+                  Reconnect different GHIN account
+                </button>
+              </>
+            ) : !ghinData ? (
+              <>
+                {/* GHIN Connect Option - No GHIN connected yet */}
                 <div className="ghin-connect-section">
                   <button 
                     className="ghin-connect-btn"
@@ -650,7 +764,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
                     <input
                       type="number"
                       step="0.1"
-                      value={ghinNumber}
+                      value={ghinNumber || user?.handicap || ''}
                       onChange={e => setGhinNumber(e.target.value)}
                       placeholder="14.7"
                     />
@@ -660,7 +774,7 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
                     <input
                       type="number"
                       step="0.1"
-                      value={targetStrokeIndex}
+                      value={targetStrokeIndex || user?.target_handicap || ''}
                       onChange={e => setTargetStrokeIndex(e.target.value)}
                       placeholder="10.0"
                     />
@@ -1620,6 +1734,79 @@ export default function Dashboard({ onNewAnalysis, onViewAnalysis, onNewCourseSt
           border-radius: 10px;
           font-weight: 700;
           text-transform: uppercase;
+        }
+
+        .ghin-connected-banner {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.15), rgba(124, 185, 124, 0.05));
+          border: 1px solid rgba(124, 185, 124, 0.3);
+          border-radius: 10px;
+          margin-bottom: 20px;
+        }
+
+        .ghin-connected-icon {
+          width: 32px;
+          height: 32px;
+          background: #7cb97c;
+          color: #0d1f0d;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          font-weight: bold;
+        }
+
+        .ghin-connected-text {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .ghin-connected-text strong {
+          font-size: 14px;
+          color: #7cb97c;
+        }
+
+        .ghin-connected-text span {
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.5);
+        }
+
+        .ghin-refresh-btn {
+          padding: 8px 14px;
+          background: rgba(124, 185, 124, 0.2);
+          border: 1px solid rgba(124, 185, 124, 0.4);
+          border-radius: 6px;
+          color: #7cb97c;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s ease;
+        }
+
+        .ghin-refresh-btn:hover:not(:disabled) {
+          background: rgba(124, 185, 124, 0.3);
+        }
+
+        .ghin-refresh-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .disconnect-link {
+          margin-top: 16px;
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.4);
+        }
+
+        .disconnect-link:hover {
+          color: rgba(240, 244, 232, 0.7);
         }
 
         .ghin-connect-hint {

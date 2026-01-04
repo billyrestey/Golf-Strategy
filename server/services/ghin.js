@@ -203,18 +203,23 @@ export async function getDetailedScores(ghinNumber, userToken, limit = 20, homeC
 
     // Detect home course (most played course)
     const courseCounts = {};
+    const courseIds = {}; // Track course IDs
     rawScores.forEach(s => {
       const courseName = s.facility_name || s.course_name;
       if (courseName) {
         courseCounts[courseName] = (courseCounts[courseName] || 0) + 1;
+        if (s.course_id && !courseIds[courseName]) {
+          courseIds[courseName] = s.course_id;
+        }
       }
     });
     
     const sortedCourses = Object.entries(courseCounts).sort((a, b) => b[1] - a[1]);
     const homeCourse = sortedCourses[0]?.[0] || null;
     const homeCoursePlays = sortedCourses[0]?.[1] || 0;
+    const homeCourseId = homeCourse ? courseIds[homeCourse] : null;
     
-    console.log('Detected home course:', homeCourse, `(${homeCoursePlays} rounds)`);
+    console.log('Detected home course:', homeCourse, `(${homeCoursePlays} rounds, ID: ${homeCourseId})`);
     console.log('All courses:', sortedCourses.slice(0, 5).map(c => `${c[0]}: ${c[1]}`).join(', '));
 
     // Filter to home course if requested and we have enough rounds there
@@ -272,6 +277,7 @@ export async function getDetailedScores(ghinNumber, userToken, limit = 20, homeC
       scores: detailedScores,
       totalScores: rawScores.length,
       homeCourse,
+      homeCourseId,
       homeCoursePlays,
       coursesPlayed: sortedCourses.map(c => ({ name: c[0], count: c[1] })),
       scoresWithHoleData: detailedScores.filter(s => s.holeDetails).length,

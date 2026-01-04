@@ -15,7 +15,8 @@ export async function analyzeGolfGame({
   missDescription, 
   strengths, 
   scorecardImages,
-  ghinScores 
+  ghinScores,
+  courseDetails 
 }) {
   
   // Step 1: Get score data from either GHIN or scorecard images
@@ -60,7 +61,8 @@ export async function analyzeGolfGame({
     missPattern,
     missDescription,
     strengths,
-    extractedScores
+    extractedScores,
+    courseDetails
   });
 
   return analysis;
@@ -134,10 +136,33 @@ async function generateStrategy({
   missPattern, 
   missDescription, 
   strengths, 
-  extractedScores 
+  extractedScores,
+  courseDetails 
 }) {
   
   const hasScoreData = extractedScores?.rounds?.length > 0;
+  const hasCourseData = courseDetails?.tees?.length > 0;
+  
+  // Build course layout section if we have real data
+  let courseLayoutSection = '';
+  if (hasCourseData) {
+    // Find the most common tee (usually men's middle tees)
+    const tee = courseDetails.tees.find(t => 
+      t.name?.toLowerCase().includes('white') || 
+      t.name?.toLowerCase().includes('middle') ||
+      t.name?.toLowerCase().includes('member')
+    ) || courseDetails.tees[0];
+    
+    if (tee?.holes && tee.holes.length > 0) {
+      courseLayoutSection = `
+## ACTUAL COURSE LAYOUT (${courseDetails.name} - ${tee.name} tees)
+Course Rating: ${tee.rating} / Slope: ${tee.slope} / Total Yards: ${tee.yardage}
+
+HOLES:
+${tee.holes.map((h, i) => `Hole ${i + 1}: Par ${h.par}, ${h.yardage} yards`).join('\n')}
+`;
+    }
+  }
   
   const prompt = `You are an expert golf coach and course strategist. Analyze this golfer's game and create a comprehensive improvement strategy.
 
@@ -148,13 +173,14 @@ async function generateStrategy({
 - Primary Miss Pattern: ${getMissDescription(missPattern)}
 ${missDescription ? `- Additional Context: ${missDescription}` : ''}
 - Self-Reported Strengths: ${strengths.length > 0 ? strengths.join(', ') : 'None specified'}
-
+${courseLayoutSection}
 ${hasScoreData ? `## SCORECARD DATA
 ${JSON.stringify(extractedScores, null, 2)}` : '## NO SCORECARD DATA PROVIDED'}
 
 ## YOUR TASK
 
 Analyze this golfer's game and return a JSON object with the following structure. Be specific and actionable. Tailor everything to their miss pattern and strengths.
+${hasCourseData ? '\nIMPORTANT: Use the ACTUAL course layout data provided above for holeByHoleStrategy. Do NOT invent or guess hole yardages/pars.' : '\nNOTE: No actual course hole data available. For holeByHoleStrategy, provide GENERAL advice by hole type (short par 4, long par 3, etc.) WITHOUT specific fake yardages. Use placeholder values like "TBD" for yards.'}
 
 {
   "summary": {

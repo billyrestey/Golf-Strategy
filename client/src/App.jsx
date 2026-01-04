@@ -243,14 +243,17 @@ export default function App() {
       
       if (connectData.scores && connectData.scores.length > 0) {
         console.log('Scores from connect:', connectData.scores.length);
+        console.log('Course details:', connectData.courseDetails ? 'Yes' : 'No');
         scoresData = {
           success: true,
           scores: connectData.scores,
           homeCourse: connectData.homeCourse,
+          homeCourseId: connectData.homeCourseId,
           homeCoursePlays: connectData.homeCoursePlays,
           scoresWithHoleData: connectData.scores.filter(s => s.holeDetails).length,
           coursesPlayed: connectData.coursesPlayed || [],
-          aggregateStats: connectData.aggregateStats
+          aggregateStats: connectData.aggregateStats,
+          courseDetails: connectData.courseDetails || null
         };
         
         // Use server-detected home course
@@ -301,6 +304,11 @@ export default function App() {
       // Include GHIN scores if connected
       if (ghinConnected && ghinScores?.scores) {
         submitData.append('ghinScores', JSON.stringify(ghinScores.scores));
+      }
+      
+      // Include course details if available (for accurate hole data)
+      if (ghinScores?.courseDetails) {
+        submitData.append('courseDetails', JSON.stringify(ghinScores.courseDetails));
       }
       
       // Append scorecard files
