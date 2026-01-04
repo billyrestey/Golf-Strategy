@@ -899,10 +899,17 @@ export default function App() {
               <span className="stat-label">With Hole Data</span>
             </div>
             <div className="summary-stat">
-              <span className="stat-number">{ghinScores.coursesPlayed?.length || 0}</span>
-              <span className="stat-label">Courses</span>
+              <span className="stat-number">1</span>
+              <span className="stat-label">Course</span>
             </div>
           </div>
+          
+          {ghinScores.homeCourse && (
+            <div className="home-course-badge">
+              <span className="course-icon">⛳</span>
+              <span>{ghinScores.homeCourse}</span>
+            </div>
+          )}
           
           {ghinScores.aggregateStats?.troubleHoles?.length > 0 && (
             <div className="preview-insight">
@@ -1596,6 +1603,9 @@ export default function App() {
             setView('results');
             setPendingAnalysis(null);
             localStorage.removeItem('pendingAnalysis');
+            
+            // Scroll to top so user can read the full analysis
+            window.scrollTo({ top: 0, behavior: 'smooth' });
           }
         }}
       />
@@ -2176,6 +2186,23 @@ export default function App() {
           font-size: 11px;
           text-transform: uppercase;
           color: rgba(240, 244, 232, 0.5);
+        }
+
+        .home-course-badge {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background: rgba(124, 185, 124, 0.1);
+          border: 1px solid rgba(124, 185, 124, 0.2);
+          border-radius: 20px;
+          font-size: 13px;
+          color: #7cb97c;
+          margin-bottom: 12px;
+        }
+
+        .home-course-badge .course-icon {
+          font-size: 14px;
         }
 
         .preview-insight {

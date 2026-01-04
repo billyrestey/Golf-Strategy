@@ -204,6 +204,7 @@ router.get('/me', authenticateToken, (req, res) => {
       handicap: user.handicap,
       target_handicap: user.target_handicap,
       homeCourse: user.home_course,
+      ghin_number: user.ghin_number,
       credits: user.credits,
       subscriptionStatus: user.subscription_status
     });
