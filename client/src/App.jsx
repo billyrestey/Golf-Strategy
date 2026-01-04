@@ -201,12 +201,12 @@ export default function App() {
     setError(null);
 
     try {
-      // First authenticate with GHIN
+      // Authenticate with GHIN (works without app auth)
       const connectResponse = await fetch(`${API_URL}/api/ghin/connect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           emailOrGhin: ghinCredentials.emailOrGhin,
@@ -220,48 +220,76 @@ export default function App() {
         throw new Error(connectData.error || 'Failed to connect to GHIN');
       }
 
-      // Store token and golfer info
+      // Store token
       setGhinToken(connectData.ghinToken);
       
       // Update form with golfer info
+      const golferName = connectData.golfer.playerName || 
+                         `${connectData.golfer.firstName} ${connectData.golfer.lastName}`;
+      
       setFormData(prev => ({
         ...prev,
-        name: connectData.golfer.fullName || `${connectData.golfer.firstName} ${connectData.golfer.lastName}`,
+        name: golferName,
         handicap: connectData.golfer.handicapIndex?.toString() || prev.handicap
       }));
 
-      // Now fetch detailed scores
-      const scoresResponse = await fetch(`${API_URL}/api/ghin/detailed-scores`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ghinNumber: connectData.golfer.ghinNumber,
-          ghinToken: connectData.ghinToken,
-          limit: 20
-        })
-      });
+      // Check if scores came with the connect response
+      let scoresData = null;
+      
+      if (connectData.scores && connectData.scores.length > 0) {
+        // Scores came with connect response
+        scoresData = {
+          success: true,
+          scores: connectData.scores,
+          scoresWithHoleData: connectData.scores.filter(s => s.holeDetails).length,
+          coursesPlayed: [...new Set(connectData.scores.map(s => s.courseName))]
+        };
+      } else if (connectData.ghinToken && connectData.golfer.ghinNumber) {
+        // Need to fetch scores separately
+        const scoresResponse = await fetch(`${API_URL}/api/ghin/detailed-scores`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            ghinNumber: connectData.golfer.ghinNumber,
+            ghinToken: connectData.ghinToken,
+            limit: 20
+          })
+        });
 
-      const scoresData = await scoresResponse.json();
+        scoresData = await scoresResponse.json();
+      }
 
-      if (scoresData.success) {
+      if (scoresData?.success || scoresData?.scores) {
         setGhinScores(scoresData);
         setGhinConnected(true);
         setShowGhinModal(false);
+        setGhinCredentials({ emailOrGhin: '', password: '' }); // Clear credentials
         
         // Auto-detect home course from most played course
         if (scoresData.scores?.length > 0) {
           const courseCounts = {};
           scoresData.scores.forEach(s => {
-            courseCounts[s.courseName] = (courseCounts[s.courseName] || 0) + 1;
+            const courseName = s.courseName || s.facilityName;
+            if (courseName) {
+              courseCounts[courseName] = (courseCounts[courseName] || 0) + 1;
+            }
           });
           const topCourse = Object.entries(courseCounts).sort((a, b) => b[1] - a[1])[0];
-          if (topCourse && !formData.homeCourse) {
-            setFormData(prev => ({ ...prev, homeCourse: topCourse[0] }));
+          if (topCourse) {
+            setFormData(prev => ({ 
+              ...prev, 
+              homeCourse: prev.homeCourse || topCourse[0] 
+            }));
           }
         }
+      } else {
+        // Connected but no scores - still success
+        setGhinConnected(true);
+        setShowGhinModal(false);
+        setGhinCredentials({ emailOrGhin: '', password: '' });
       }
 
     } catch (err) {
@@ -589,60 +617,158 @@ export default function App() {
     <div className="step-content">
       <div className="step-header">
         <span className="step-number">01</span>
-        <h2>Let's start with the basics</h2>
-        <p>Tell us about your game so we can build your strategy.</p>
+        <h2>Let's get started</h2>
+        <p>Connect your GHIN account for the best analysis, or enter your info manually.</p>
       </div>
       
-      <div className="form-group">
-        <label>Your Name</label>
-        <input
-          type="text"
-          value={formData.name}
-          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-          placeholder="e.g., Bobby Berger"
-        />
-      </div>
-      
-      <div className="form-row-half">
-        <div className="form-group">
-          <label>Current Stroke Index</label>
-          <input
-            type="number"
-            step="0.1"
-            value={formData.handicap}
-            onChange={(e) => setFormData(prev => ({ ...prev, handicap: e.target.value }))}
-            placeholder="e.g., 15"
-          />
-        </div>
-        <div className="form-group">
-          <label>Target Stroke Index</label>
-          <input
-            type="number"
-            step="0.1"
-            value={formData.targetHandicap}
-            onChange={(e) => setFormData(prev => ({ ...prev, targetHandicap: e.target.value }))}
-            placeholder="e.g., 9"
-          />
-        </div>
-      </div>
-      
-      <div className="form-group">
-        <label>Home Course</label>
-        <input
-          type="text"
-          value={formData.homeCourse}
-          onChange={(e) => setFormData(prev => ({ ...prev, homeCourse: e.target.value }))}
-          placeholder="e.g., Useless Bay G&CC"
-        />
-      </div>
-      
-      <button 
-        className="next-btn"
-        onClick={() => setStep(2)}
-        disabled={!formData.name || !formData.handicap || !formData.homeCourse}
-      >
-        Continue →
-      </button>
+      {!ghinConnected ? (
+        <>
+          {/* GHIN Connect Option */}
+          <button 
+            className="ghin-connect-btn-large"
+            onClick={() => setShowGhinModal(true)}
+            disabled={isConnectingGhin}
+          >
+            <span className="ghin-btn-icon">⛳</span>
+            <div className="ghin-btn-content">
+              <strong>Connect GHIN Account</strong>
+              <span>Auto-import handicap, scores & stats</span>
+            </div>
+            <span className="ghin-btn-tag">Recommended</span>
+          </button>
+          
+          <div className="step-divider">
+            <span>or enter manually</span>
+          </div>
+          
+          {/* Manual Entry */}
+          <div className="form-group">
+            <label>Your Name</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="e.g., Bobby Berger"
+            />
+          </div>
+          
+          <div className="form-row-half">
+            <div className="form-group">
+              <label>Current Stroke Index</label>
+              <input
+                type="number"
+                step="0.1"
+                value={formData.handicap}
+                onChange={(e) => setFormData(prev => ({ ...prev, handicap: e.target.value }))}
+                placeholder="e.g., 15"
+              />
+            </div>
+            <div className="form-group">
+              <label>Home Course</label>
+              <input
+                type="text"
+                value={formData.homeCourse}
+                onChange={(e) => setFormData(prev => ({ ...prev, homeCourse: e.target.value }))}
+                placeholder="e.g., Pebble Beach"
+              />
+            </div>
+          </div>
+          
+          <button 
+            className="next-btn"
+            onClick={() => setStep(2)}
+            disabled={!formData.name || !formData.handicap}
+          >
+            Continue →
+          </button>
+        </>
+      ) : (
+        <>
+          {/* GHIN Connected State */}
+          <div className="ghin-connected-card">
+            <div className="ghin-connected-header">
+              <div className="ghin-success-icon">✓</div>
+              <div className="ghin-connected-info">
+                <h3>GHIN Connected!</h3>
+                <p>{ghinScores?.scores?.length || 0} rounds imported</p>
+              </div>
+            </div>
+            
+            <div className="ghin-profile-summary">
+              <div className="profile-item">
+                <span className="profile-label">Name</span>
+                <span className="profile-value">{formData.name}</span>
+              </div>
+              <div className="profile-item">
+                <span className="profile-label">Handicap</span>
+                <span className="profile-value highlight">{formData.handicap}</span>
+              </div>
+              <div className="profile-item">
+                <span className="profile-label">Home Course</span>
+                <span className="profile-value">{formData.homeCourse || 'Not detected'}</span>
+              </div>
+              {ghinScores?.scoresWithHoleData > 0 && (
+                <div className="profile-item">
+                  <span className="profile-label">Hole-by-Hole Data</span>
+                  <span className="profile-value">{ghinScores.scoresWithHoleData} rounds</span>
+                </div>
+              )}
+            </div>
+            
+            {ghinScores?.aggregateStats && (
+              <div className="ghin-stats-preview">
+                {ghinScores.aggregateStats.avgFairwaysHit && (
+                  <div className="stat-chip">
+                    <span className="stat-label">Avg FIR</span>
+                    <span className="stat-value">{ghinScores.aggregateStats.avgFairwaysHit}</span>
+                  </div>
+                )}
+                {ghinScores.aggregateStats.avgGIR && (
+                  <div className="stat-chip">
+                    <span className="stat-label">Avg GIR</span>
+                    <span className="stat-value">{ghinScores.aggregateStats.avgGIR}</span>
+                  </div>
+                )}
+                {ghinScores.aggregateStats.avgPutts && (
+                  <div className="stat-chip">
+                    <span className="stat-label">Avg Putts</span>
+                    <span className="stat-value">{ghinScores.aggregateStats.avgPutts}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <button 
+              className="disconnect-btn"
+              onClick={() => {
+                setGhinConnected(false);
+                setGhinScores(null);
+                setGhinToken(null);
+                setFormData(prev => ({ ...prev, name: '', handicap: '', homeCourse: '' }));
+              }}
+            >
+              Disconnect & start over
+            </button>
+          </div>
+          
+          <div className="form-group" style={{ marginTop: '20px' }}>
+            <label>Home Course {formData.homeCourse ? '(detected)' : ''}</label>
+            <input
+              type="text"
+              value={formData.homeCourse}
+              onChange={(e) => setFormData(prev => ({ ...prev, homeCourse: e.target.value }))}
+              placeholder="e.g., Pebble Beach"
+            />
+          </div>
+          
+          <button 
+            className="next-btn"
+            onClick={() => setStep(2)}
+          >
+            Continue →
+          </button>
+        </>
+      )}
     </div>
   );
 
@@ -650,34 +776,60 @@ export default function App() {
     <div className="step-content">
       <div className="step-header">
         <span className="step-number">02</span>
-        <h2>What's your typical miss?</h2>
-        <p>Be honest — this is the key to your strategy.</p>
+        <h2>Your goals & game</h2>
+        <p>Help us understand where you want to improve.</p>
       </div>
       
-      <div className="miss-options">
-        {missPatterns.map(pattern => (
-          <div
-            key={pattern.id}
-            className={`miss-card ${formData.missPattern === pattern.id ? 'selected' : ''}`}
-            onClick={() => setFormData(prev => ({ ...prev, missPattern: pattern.id }))}
-          >
-            <div className="miss-card-inner">
-              <div className="miss-label">{pattern.label}</div>
-              <div className="miss-desc">{pattern.description}</div>
-            </div>
-            <div className="check-mark">✓</div>
+      {ghinConnected && ghinScores?.scores?.length > 0 && (
+        <div className="imported-data-banner">
+          <span className="banner-icon">📊</span>
+          <span>We've analyzed {ghinScores.scores.length} rounds from your GHIN account</span>
+        </div>
+      )}
+      
+      <div className="form-row-half">
+        <div className="form-group">
+          <label>Target Stroke Index</label>
+          <input
+            type="number"
+            step="0.1"
+            value={formData.targetHandicap}
+            onChange={(e) => setFormData(prev => ({ ...prev, targetHandicap: e.target.value }))}
+            placeholder="e.g., 10"
+          />
+          <span className="input-hint">What handicap are you working toward?</span>
+        </div>
+        <div className="form-group">
+          <label>Current: {formData.handicap || '—'}</label>
+          <div className="goal-visualization">
+            {formData.handicap && formData.targetHandicap && (
+              <div className="goal-arrow">
+                <span className="current">{formData.handicap}</span>
+                <span className="arrow">→</span>
+                <span className="target">{formData.targetHandicap}</span>
+              </div>
+            )}
           </div>
-        ))}
+        </div>
       </div>
       
-      <div className="form-group" style={{ marginTop: '24px' }}>
-        <label>Describe when it happens (optional)</label>
-        <textarea
-          value={formData.missDescription}
-          onChange={(e) => setFormData(prev => ({ ...prev, missDescription: e.target.value }))}
-          placeholder="e.g., When I swing hard and pull the handle, the face stays open..."
-          rows={3}
-        />
+      <div className="form-group">
+        <label>What's your typical miss?</label>
+        <div className="miss-options compact">
+          {missPatterns.map(pattern => (
+            <div
+              key={pattern.id}
+              className={`miss-card ${formData.missPattern === pattern.id ? 'selected' : ''}`}
+              onClick={() => setFormData(prev => ({ ...prev, missPattern: pattern.id }))}
+            >
+              <div className="miss-card-inner">
+                <div className="miss-label">{pattern.label}</div>
+                <div className="miss-desc">{pattern.description}</div>
+              </div>
+              <div className="check-mark">✓</div>
+            </div>
+          ))}
+        </div>
       </div>
       
       <div className="btn-group">
@@ -714,6 +866,16 @@ export default function App() {
         ))}
       </div>
       
+      <div className="form-group" style={{ marginTop: '24px' }}>
+        <label>Anything else we should know? (optional)</label>
+        <textarea
+          value={formData.missDescription}
+          onChange={(e) => setFormData(prev => ({ ...prev, missDescription: e.target.value }))}
+          placeholder="e.g., I struggle with long par 3s, or I three-putt a lot from distance..."
+          rows={3}
+        />
+      </div>
+      
       <div className="btn-group">
         <button className="back-btn" onClick={() => setStep(2)}>← Back</button>
         <button 
@@ -731,56 +893,45 @@ export default function App() {
     <div className="step-content">
       <div className="step-header">
         <span className="step-number">04</span>
-        <h2>Add your scores</h2>
-        <p>Connect GHIN for automatic import, or upload scorecard screenshots.</p>
+        <h2>{ghinConnected ? 'Add more detail (optional)' : 'Add your scores'}</h2>
+        <p>{ghinConnected 
+          ? 'Upload scorecards for even deeper hole-by-hole analysis.'
+          : 'Upload scorecard photos for the best analysis.'}</p>
       </div>
       
-      {/* GHIN Connection Option */}
-      {!ghinConnected ? (
-        <div className="ghin-connect-section">
-          <div className="ghin-coming-soon">
-            <span className="ghin-icon">⛳</span>
-            <div className="ghin-btn-text">
-              <strong>GHIN Auto-Import</strong>
-              <span>Coming soon! For now, upload scorecard screenshots below.</span>
+      {/* Show GHIN data summary if connected */}
+      {ghinConnected && ghinScores?.scores?.length > 0 && (
+        <div className="ghin-data-summary">
+          <div className="summary-header">
+            <span className="summary-icon">✓</span>
+            <span>Ready to analyze with GHIN data</span>
+          </div>
+          <div className="summary-stats">
+            <div className="summary-stat">
+              <span className="stat-number">{ghinScores.scores.length}</span>
+              <span className="stat-label">Rounds</span>
+            </div>
+            <div className="summary-stat">
+              <span className="stat-number">{ghinScores.scoresWithHoleData || 0}</span>
+              <span className="stat-label">With Hole Data</span>
+            </div>
+            <div className="summary-stat">
+              <span className="stat-number">{ghinScores.coursesPlayed?.length || 0}</span>
+              <span className="stat-label">Courses</span>
             </div>
           </div>
           
-          <p className="ghin-tip">
-            💡 <strong>Tip:</strong> Hole-by-hole scorecards work great for analysis!
-          </p>
-        </div>
-      ) : (
-        <div className="ghin-connected-section">
-          <div className="ghin-success">
-            <span className="success-icon">✓</span>
-            <div className="success-text">
-              <strong>GHIN Connected!</strong>
-              <span>{ghinScores?.scores?.length || 0} rounds imported • {ghinScores?.scoresWithHoleData || 0} with hole-by-hole data</span>
-            </div>
-          </div>
-          
-          {ghinScores?.scores?.length > 0 && (
-            <div className="imported-rounds">
-              <div className="rounds-preview">
-                {ghinScores.scores.slice(0, 5).map((score, i) => (
-                  <div key={i} className="round-chip imported">
-                    <span className="round-score">{score.totalScore}</span>
-                    <span className="round-course">{score.courseName?.substring(0, 20)}</span>
-                    {score.holeScores && <span className="hole-badge">18H</span>}
-                  </div>
-                ))}
-                {ghinScores.scores.length > 5 && (
-                  <div className="round-chip more">+{ghinScores.scores.length - 5} more</div>
-                )}
-              </div>
+          {ghinScores.aggregateStats?.troubleHoles?.length > 0 && (
+            <div className="preview-insight">
+              <span className="insight-icon">💡</span>
+              <span>We've identified {ghinScores.aggregateStats.troubleHoles.length} trouble holes to analyze</span>
             </div>
           )}
         </div>
       )}
       
-      {/* Manual Upload Option */}
-      <div className="upload-zone">
+      {/* Upload Zone */}
+      <div className={`upload-zone ${ghinConnected ? 'optional' : ''}`}>
         <input
           type="file"
           accept="image/*"
@@ -792,7 +943,7 @@ export default function App() {
         <label htmlFor="scorecard-upload" className="upload-label">
           <div className="upload-icon">📸</div>
           <div className="upload-text">
-            <strong>{ghinConnected ? 'Add more scorecards (optional)' : 'Drop scorecards here'}</strong>
+            <strong>{ghinConnected ? 'Add scorecards for more detail' : 'Drop scorecards here'}</strong>
             <span>or click to browse</span>
           </div>
         </label>
@@ -830,18 +981,21 @@ export default function App() {
         <button 
           className="next-btn analyze-btn"
           onClick={analyzeGame}
-          disabled={isAnalyzing}
+          disabled={isAnalyzing || (!ghinConnected && formData.uploadedCards.length === 0)}
         >
-          {isAnalyzing ? 'Analyzing...' : 
-           (ghinConnected || formData.uploadedCards.length >= 3)
-            ? 'Analyze My Game →' 
-            : `Analyze (${formData.uploadedCards.length} cards)`}
+          {isAnalyzing ? 'Analyzing...' : 'Analyze My Game →'}
         </button>
       </div>
       
-      {!ghinConnected && formData.uploadedCards.length < 3 && (
+      {!ghinConnected && formData.uploadedCards.length === 0 && (
+        <p className="upload-hint">
+          Upload at least one scorecard to continue, or <button className="link-btn" onClick={() => setStep(1)}>connect GHIN</button>
+        </p>
+      )}
+      
+      {!ghinConnected && formData.uploadedCards.length > 0 && formData.uploadedCards.length < 3 && (
         <p className="skip-note">
-          More scorecards = better analysis. <button className="skip-link" onClick={analyzeGame}>Continue anyway</button>
+          More scorecards = better analysis. <button className="skip-link" onClick={analyzeGame}>Continue with {formData.uploadedCards.length}</button>
         </p>
       )}
     </div>
@@ -1724,6 +1878,355 @@ export default function App() {
           .form-row-half {
             grid-template-columns: 1fr;
           }
+        }
+
+        /* GHIN Connect Button - Large */
+        .ghin-connect-btn-large {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 20px 24px;
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.15), rgba(124, 185, 124, 0.05));
+          border: 2px solid rgba(124, 185, 124, 0.4);
+          border-radius: 16px;
+          color: #fff;
+          font-size: 16px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s ease;
+          text-align: left;
+          margin-bottom: 24px;
+        }
+
+        .ghin-connect-btn-large:hover:not(:disabled) {
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.25), rgba(124, 185, 124, 0.1));
+          border-color: #7cb97c;
+          transform: translateY(-2px);
+        }
+
+        .ghin-connect-btn-large:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .ghin-btn-icon {
+          font-size: 32px;
+        }
+
+        .ghin-btn-content {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .ghin-btn-content strong {
+          font-size: 18px;
+        }
+
+        .ghin-btn-content span {
+          font-size: 14px;
+          color: rgba(240, 244, 232, 0.6);
+        }
+
+        .ghin-btn-tag {
+          background: #7cb97c;
+          color: #0d1f0d;
+          font-size: 10px;
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: 12px;
+          text-transform: uppercase;
+        }
+
+        .step-divider {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin: 24px 0;
+        }
+
+        .step-divider::before,
+        .step-divider::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .step-divider span {
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.4);
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        /* GHIN Connected Card */
+        .ghin-connected-card {
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.1), rgba(124, 185, 124, 0.02));
+          border: 2px solid rgba(124, 185, 124, 0.3);
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 24px;
+        }
+
+        .ghin-connected-header {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 20px;
+        }
+
+        .ghin-success-icon {
+          width: 48px;
+          height: 48px;
+          background: linear-gradient(135deg, #7cb97c, #5a9a5a);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 24px;
+          color: #0d1f0d;
+        }
+
+        .ghin-connected-info h3 {
+          font-size: 18px;
+          margin-bottom: 4px;
+        }
+
+        .ghin-connected-info p {
+          font-size: 14px;
+          color: rgba(240, 244, 232, 0.6);
+        }
+
+        .ghin-profile-summary {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+
+        .profile-item {
+          background: rgba(0, 0, 0, 0.2);
+          padding: 12px 16px;
+          border-radius: 10px;
+        }
+
+        .profile-label {
+          display: block;
+          font-size: 11px;
+          text-transform: uppercase;
+          color: rgba(240, 244, 232, 0.5);
+          margin-bottom: 4px;
+        }
+
+        .profile-value {
+          font-size: 16px;
+          font-weight: 500;
+        }
+
+        .profile-value.highlight {
+          color: #7cb97c;
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 24px;
+        }
+
+        .ghin-stats-preview {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+
+        .stat-chip {
+          background: rgba(0, 0, 0, 0.2);
+          padding: 8px 12px;
+          border-radius: 8px;
+          text-align: center;
+        }
+
+        .stat-chip .stat-label {
+          display: block;
+          font-size: 10px;
+          text-transform: uppercase;
+          color: rgba(240, 244, 232, 0.5);
+        }
+
+        .stat-chip .stat-value {
+          font-size: 16px;
+          font-weight: 600;
+          color: #7cb97c;
+        }
+
+        .disconnect-btn {
+          width: 100%;
+          padding: 10px;
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          color: rgba(240, 244, 232, 0.5);
+          font-size: 13px;
+          cursor: pointer;
+          font-family: inherit;
+        }
+
+        .disconnect-btn:hover {
+          border-color: rgba(255, 255, 255, 0.2);
+          color: rgba(240, 244, 232, 0.8);
+        }
+
+        /* Step 2 styles */
+        .imported-data-banner {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: rgba(124, 185, 124, 0.1);
+          border: 1px solid rgba(124, 185, 124, 0.2);
+          border-radius: 10px;
+          padding: 12px 16px;
+          margin-bottom: 24px;
+          font-size: 14px;
+          color: #7cb97c;
+        }
+
+        .goal-visualization {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 12px;
+          min-height: 60px;
+        }
+
+        .goal-arrow {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .goal-arrow .current {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 28px;
+          color: rgba(240, 244, 232, 0.6);
+        }
+
+        .goal-arrow .arrow {
+          font-size: 24px;
+          color: #7cb97c;
+        }
+
+        .goal-arrow .target {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 28px;
+          color: #7cb97c;
+        }
+
+        .input-hint {
+          display: block;
+          font-size: 12px;
+          color: rgba(240, 244, 232, 0.4);
+          margin-top: 6px;
+        }
+
+        .miss-options.compact {
+          gap: 8px;
+        }
+
+        .miss-options.compact .miss-card {
+          padding: 14px 18px;
+        }
+
+        /* Step 4 GHIN Data Summary */
+        .ghin-data-summary {
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.1), rgba(124, 185, 124, 0.02));
+          border: 2px solid rgba(124, 185, 124, 0.3);
+          border-radius: 16px;
+          padding: 20px;
+          margin-bottom: 24px;
+        }
+
+        .summary-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 16px;
+          color: #7cb97c;
+          font-weight: 600;
+        }
+
+        .summary-header .summary-icon {
+          width: 24px;
+          height: 24px;
+          background: #7cb97c;
+          color: #0d1f0d;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+        }
+
+        .summary-stats {
+          display: flex;
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+
+        .summary-stat {
+          text-align: center;
+          flex: 1;
+          background: rgba(0, 0, 0, 0.2);
+          padding: 12px;
+          border-radius: 10px;
+        }
+
+        .summary-stat .stat-number {
+          display: block;
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 28px;
+          font-weight: 700;
+          color: #fff;
+        }
+
+        .summary-stat .stat-label {
+          font-size: 11px;
+          text-transform: uppercase;
+          color: rgba(240, 244, 232, 0.5);
+        }
+
+        .preview-insight {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 14px;
+          color: rgba(240, 244, 232, 0.7);
+        }
+
+        .upload-zone.optional {
+          border-style: dashed;
+          opacity: 0.7;
+        }
+
+        .upload-zone.optional:hover {
+          opacity: 1;
+        }
+
+        .upload-hint {
+          text-align: center;
+          font-size: 14px;
+          color: rgba(240, 244, 232, 0.5);
+          margin-top: 16px;
+        }
+
+        .upload-hint .link-btn {
+          background: none;
+          border: none;
+          color: #7cb97c;
+          text-decoration: underline;
+          cursor: pointer;
+          font-family: inherit;
+          font-size: inherit;
         }
         
         .miss-options {
