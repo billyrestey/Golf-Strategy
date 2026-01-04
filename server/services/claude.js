@@ -262,6 +262,7 @@ Important guidelines:
 5. Be encouraging but realistic about improvement timeline.
 6. The strategy should feel personalized, not generic.
 7. For holeByHoleStrategy, "light" should be: "red" for danger holes, "yellow" for conditional, "green" for birdie opportunities.
+8. NOTE: Many golfers post 9-hole rounds to GHIN (which get combined into 18-hole equivalents). Do NOT make deductions about "inconsistent play" or "mental game issues" based on round data - 9-hole rounds are completely normal and common.
 
 Return ONLY the JSON object, no other text.`;
 

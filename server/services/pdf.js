@@ -477,35 +477,37 @@ export function generateStrategyPDF(analysis, userData) {
           yPos += rowHeight;
         });
 
-        // Bottom mantra
-        yPos += 15;
-        doc.rect(leftMargin, yPos, pageWidth, 35).fill(colors.lightGray);
-        doc.rect(leftMargin, yPos, 4, 35).fill(colors.lightGreen);
-        
-        const mantra = analysis.mentalGame?.mantras?.[0] || 
-                      analysis.courseStrategy?.overallApproach ||
-                      'Play to your strengths. Trust your swing.';
-        doc.fillColor(colors.darkGreen)
-           .fontSize(8)
-           .font('Helvetica-Bold')
-           .text('MANTRA:', leftMargin + 15, yPos + 8, { lineBreak: false });
-        doc.fillColor(colors.gray)
-           .fontSize(9)
-           .font('Helvetica-Oblique')
-           .text(`"${mantra.substring(0, 100)}"`, leftMargin + 15, yPos + 20, { width: pageWidth - 40, lineBreak: false });
+        // Bottom mantra - ensure it fits on page (check remaining space)
+        const remainingSpace = doc.page.height - yPos - 50;
+        if (remainingSpace < 80) {
+          // Not enough space, skip mantra/targets to avoid orphaned pages
+          // Just end cleanly
+        } else {
+          yPos += 10;
+          doc.rect(leftMargin, yPos, pageWidth, 30).fill(colors.lightGray);
+          doc.rect(leftMargin, yPos, 4, 30).fill(colors.lightGreen);
+          
+          const mantra = analysis.mentalGame?.mantras?.[0] || 
+                        analysis.courseStrategy?.overallApproach ||
+                        'Play to your strengths. Trust your swing.';
+          doc.fillColor(colors.darkGreen)
+             .fontSize(8)
+             .font('Helvetica-Bold')
+             .text('MANTRA:', leftMargin + 15, yPos + 6, { lineBreak: false });
+          doc.fillColor(colors.gray)
+             .fontSize(9)
+             .font('Helvetica-Oblique')
+             .text(`"${mantra.substring(0, 80)}"`, leftMargin + 70, yPos + 6, { width: pageWidth - 100, lineBreak: false });
 
-        // Bottom targets
-        yPos += 45;
-        const targets = [
-          `Target: ${analysis.targetStats?.fairwaysHit || '40%'} fairways`,
-          `Eliminate ${analysis.targetStats?.penaltiesPerRound || '2+'} penalty strokes/round`,
-          analysis.mentalGame?.preShot?.substring(0, 40) || 'Trust your swing'
-        ].join(' | ');
-        
-        doc.fillColor(colors.gray)
-           .fontSize(8)
-           .font('Helvetica')
-           .text(targets, leftMargin, yPos, { width: pageWidth, align: 'center' });
+          // Bottom targets - single line
+          yPos += 35;
+          const targets = `Target: ${analysis.targetStats?.fairwaysHit || '40%'} fairways | ${analysis.targetStats?.penaltiesPerRound || '< 2'} penalties/round | ${(analysis.mentalGame?.preShot || 'Trust your swing').substring(0, 35)}`;
+          
+          doc.fillColor(colors.gray)
+             .fontSize(7)
+             .font('Helvetica')
+             .text(targets, leftMargin, yPos, { width: pageWidth, align: 'center', lineBreak: false });
+        }
       }
 
       doc.end();
