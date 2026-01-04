@@ -238,32 +238,26 @@ export default function App() {
         homeCourse: prev.homeCourse || homeCourse
       }));
 
-      // Process scores
+      // Process scores - server now handles home course detection and filtering
       let scoresData = null;
       
       if (connectData.scores && connectData.scores.length > 0) {
         console.log('Scores from connect:', connectData.scores.length);
-        // Scores came with connect response
         scoresData = {
           success: true,
           scores: connectData.scores,
+          homeCourse: connectData.homeCourse,
+          homeCoursePlays: connectData.homeCoursePlays,
           scoresWithHoleData: connectData.scores.filter(s => s.holeDetails).length,
-          coursesPlayed: [...new Set(connectData.scores.map(s => s.courseName || s.facilityName).filter(Boolean))]
+          coursesPlayed: connectData.coursesPlayed || [],
+          aggregateStats: connectData.aggregateStats
         };
         
-        // Override home course with most played course if we have scores
-        const courseCounts = {};
-        connectData.scores.forEach(s => {
-          const courseName = s.courseName || s.facilityName;
-          if (courseName) {
-            courseCounts[courseName] = (courseCounts[courseName] || 0) + 1;
-          }
-        });
-        const topCourse = Object.entries(courseCounts).sort((a, b) => b[1] - a[1])[0];
-        if (topCourse) {
+        // Use server-detected home course
+        if (connectData.homeCourse) {
           setFormData(prev => ({ 
             ...prev, 
-            homeCourse: topCourse[0] 
+            homeCourse: connectData.homeCourse 
           }));
         }
       }

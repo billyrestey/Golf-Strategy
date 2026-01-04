@@ -154,117 +154,115 @@ export async function authenticateUser(emailOrGhin, password) {
 }
 
 // Get detailed scores using user's token (includes hole-by-hole when available)
-export async function getDetailedScores(ghinNumber, userToken, limit = 20) {
+export async function getDetailedScores(ghinNumber, userToken, limit = 20, homeCourseOnly = true) {
   try {
     console.log('Fetching detailed GHIN scores for:', ghinNumber);
     
-    // First get basic score list
-    const scoresResponse = await fetch(
-      `https://api2.ghin.com/api/v1/golfers/${ghinNumber}/scores.json?limit=${limit}&page=1`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${userToken}`
-        }
-      }
-    );
+    // Try multiple endpoints - same approach as working RoastMyGolfGame app
+    const scoresUrls = [
+      `https://api2.ghin.com/api/v1/golfers/${ghinNumber}/scores.json`,
+      `https://api2.ghin.com/api/v1/scores.json?golfer_id=${ghinNumber}`,
+    ];
 
-    if (!scoresResponse.ok) {
-      console.error('GHIN scores fetch failed:', scoresResponse.status);
-      return { success: false, error: 'Could not fetch scores' };
-    }
-
-    const scoresData = await scoresResponse.json();
-    console.log('Raw GHIN scores response keys:', Object.keys(scoresData));
+    let rawScores = [];
     
-    // GHIN returns scores in 'recent_scores', not 'scores'
-    const rawScores = scoresData.recent_scores || scoresData.scores || [];
-    console.log('Number of scores found:', rawScores.length);
-    
-    if (rawScores.length === 0) {
-      return { success: true, scores: [], message: 'No scores found' };
-    }
+    for (const url of scoresUrls) {
+      try {
+        console.log('Trying scores URL:', url);
+        const scoresResponse = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${userToken}`
+          }
+        });
 
-    // Log first score to see available fields
-    if (rawScores[0]) {
-      console.log('Sample score fields:', Object.keys(rawScores[0]));
-      console.log('Sample score data:', JSON.stringify({
-        course_name: rawScores[0].course_name,
-        facility_name: rawScores[0].facility_name,
-        adjusted_gross_score: rawScores[0].adjusted_gross_score,
-        differential: rawScores[0].differential
-      }));
-    }
+        console.log('Scores response status:', scoresResponse.status);
 
-    // For each score, try to get hole-by-hole details
-    const detailedScores = await Promise.all(
-      rawScores.slice(0, limit).map(async (score) => {
-        const baseScore = {
-          id: score.id,
-          date: score.played_at,
-          courseName: score.course_name || score.facility_name,
-          facilityName: score.facility_name || score.course_name,
-          courseId: score.course_id,
-          totalScore: score.adjusted_gross_score,
-          rawScore: score.raw_score,
-          courseRating: score.course_rating,
-          slopeRating: score.slope_rating,
-          differential: score.differential,
-          tees: score.tee_name,
-          numberOfHoles: score.number_of_holes,
-          scoreType: score.score_type,
+        if (scoresResponse.ok) {
+          const scoresData = await scoresResponse.json();
+          console.log('Scores data keys:', Object.keys(scoresData));
           
-          // Round stats (if user entered them)
-          fairwaysHit: score.fairways_hit,
-          fairwaysPossible: score.fairways_possible,
-          greensInRegulation: score.gir || score.greens_in_regulation,
-          girPossible: score.gir_possible,
-          putts: score.putts,
-          penalties: score.penalties,
+          // Try different possible score array locations
+          rawScores = scoresData.scores || scoresData.recent_scores || scoresData.score_list || [];
+          console.log('Total scores found:', rawScores.length);
           
-          // Hole-by-hole data
-          holeDetails: null
-        };
-
-        // Check if hole_details came with the score list
-        if (score.hole_details && score.hole_details.length > 0) {
-          baseScore.holeDetails = extractHoleDetails(score.hole_details);
-          console.log(`Score ${score.id} has ${score.hole_details.length} hole details inline`);
-        } else {
-          // Try to fetch hole-by-hole details for this score
-          try {
-            const detailResponse = await fetch(
-              `https://api2.ghin.com/api/v1/scores/${score.id}.json`,
-              {
-                method: 'GET',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                  'Authorization': `Bearer ${userToken}`
-                }
-              }
-            );
-
-            if (detailResponse.ok) {
-              const detailData = await detailResponse.json();
-              const holes = detailData.score?.hole_details || 
-                           detailData.score?.holes || 
-                           detailData.hole_details;
-              if (holes && holes.length > 0) {
-                baseScore.holeDetails = extractHoleDetails(holes);
-                console.log(`Score ${score.id} fetched ${holes.length} hole details`);
-              }
-            }
-          } catch (err) {
-            // Hole details not available for this score
+          if (rawScores.length > 0) {
+            break; // Found scores, stop trying other URLs
           }
         }
+      } catch (urlErr) {
+        console.error('Error fetching scores from', url, ':', urlErr.message);
+      }
+    }
+    
+    if (rawScores.length === 0) {
+      return { success: true, scores: [], message: 'No scores found', homeCourse: null };
+    }
 
-        return baseScore;
-      })
-    );
+    // Detect home course (most played course)
+    const courseCounts = {};
+    rawScores.forEach(s => {
+      const courseName = s.facility_name || s.course_name;
+      if (courseName) {
+        courseCounts[courseName] = (courseCounts[courseName] || 0) + 1;
+      }
+    });
+    
+    const sortedCourses = Object.entries(courseCounts).sort((a, b) => b[1] - a[1]);
+    const homeCourse = sortedCourses[0]?.[0] || null;
+    const homeCoursePlays = sortedCourses[0]?.[1] || 0;
+    
+    console.log('Detected home course:', homeCourse, `(${homeCoursePlays} rounds)`);
+    console.log('All courses:', sortedCourses.slice(0, 5).map(c => `${c[0]}: ${c[1]}`).join(', '));
+
+    // Filter to home course if requested and we have enough rounds there
+    let scoresToProcess = rawScores;
+    if (homeCourseOnly && homeCourse && homeCoursePlays >= 5) {
+      scoresToProcess = rawScores.filter(s => 
+        (s.facility_name || s.course_name) === homeCourse
+      );
+      console.log(`Filtered to home course: ${scoresToProcess.length} rounds`);
+    } else if (homeCourseOnly && homeCoursePlays < 5) {
+      console.log('Not enough home course rounds, using all courses');
+    }
+
+    // Cap at limit (default 20)
+    scoresToProcess = scoresToProcess.slice(0, limit);
+    console.log(`Processing ${scoresToProcess.length} scores (limit: ${limit})`);
+
+    // For each score, extract the data we need
+    const detailedScores = scoresToProcess.map(score => {
+      const baseScore = {
+        id: score.id,
+        date: score.played_at,
+        courseName: score.course_name || score.facility_name,
+        facilityName: score.facility_name || score.course_name,
+        courseId: score.course_id,
+        totalScore: score.adjusted_gross_score,
+        rawScore: score.raw_score,
+        courseRating: score.course_rating,
+        slopeRating: score.slope_rating,
+        differential: score.differential,
+        tees: score.tee_name,
+        numberOfHoles: score.number_of_holes,
+        scoreType: score.score_type,
+        
+        // Round stats (if user entered them)
+        fairwaysHit: score.fairways_hit,
+        fairwaysPossible: score.fairways_possible,
+        greensInRegulation: score.gir || score.greens_in_regulation,
+        girPossible: score.gir_possible,
+        putts: score.putts,
+        penalties: score.penalties,
+        
+        // Hole-by-hole data (if available)
+        holeDetails: score.hole_details ? extractHoleDetails(score.hole_details) : null
+      };
+
+      return baseScore;
+    });
 
     // Aggregate stats across all rounds for analysis
     const aggregateStats = calculateAggregateStats(detailedScores);
@@ -272,8 +270,10 @@ export async function getDetailedScores(ghinNumber, userToken, limit = 20) {
     return {
       success: true,
       scores: detailedScores,
-      totalScores: scoresData.total_scores || detailedScores.length,
-      coursesPlayed: [...new Set(detailedScores.map(s => s.courseName))],
+      totalScores: rawScores.length,
+      homeCourse,
+      homeCoursePlays,
+      coursesPlayed: sortedCourses.map(c => ({ name: c[0], count: c[1] })),
       scoresWithHoleData: detailedScores.filter(s => s.holeDetails).length,
       aggregateStats
     };

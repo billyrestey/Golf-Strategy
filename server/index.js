@@ -548,38 +548,41 @@ app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
       });
     }
 
-    // Try to fetch recent scores
-    let scores = authResult.recentScores || [];
-    console.log('Scores from login response:', scores.length);
+    // Fetch scores (filtered to home course, capped at 20)
+    let scoresResult = { scores: [], homeCourse: null };
     
-    // If no scores came with login, try fetching them separately
-    if (scores.length === 0 && authResult.token && authResult.golfer.ghinNumber) {
-      console.log('Fetching scores separately for GHIN:', authResult.golfer.ghinNumber);
+    if (authResult.token && authResult.golfer.ghinNumber) {
+      console.log('Fetching scores for GHIN:', authResult.golfer.ghinNumber);
       try {
-        const scoresResult = await getDetailedScores(
+        scoresResult = await getDetailedScores(
           authResult.golfer.ghinNumber, 
           authResult.token, 
-          20
+          20,  // limit
+          true // homeCourseOnly
         );
-        console.log('Separate scores fetch result:', {
+        console.log('Scores fetch result:', {
           success: scoresResult.success,
-          count: scoresResult.scores?.length || 0
+          count: scoresResult.scores?.length || 0,
+          homeCourse: scoresResult.homeCourse,
+          homeCoursePlays: scoresResult.homeCoursePlays
         });
-        if (scoresResult.success) {
-          scores = scoresResult.scores;
-        }
       } catch (err) {
-        console.log('Could not fetch additional scores:', err.message);
+        console.log('Could not fetch scores:', err.message);
       }
     }
 
-    console.log('Final response - scores:', scores.length, 'handicap:', authResult.golfer.handicapIndex);
+    console.log('Final response - scores:', scoresResult.scores?.length || 0, 'handicap:', authResult.golfer.handicapIndex);
 
     res.json({
       success: true,
       golfer: authResult.golfer,
       ghinToken: authResult.token,
-      scores: scores
+      scores: scoresResult.scores || [],
+      homeCourse: scoresResult.homeCourse,
+      homeCoursePlays: scoresResult.homeCoursePlays,
+      totalScores: scoresResult.totalScores,
+      coursesPlayed: scoresResult.coursesPlayed,
+      aggregateStats: scoresResult.aggregateStats
     });
   } catch (error) {
     console.error('GHIN connect error:', error);
