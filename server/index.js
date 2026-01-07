@@ -1,6 +1,8 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
@@ -26,8 +28,6 @@ import {
   getCourseStrategiesByUser,
   getCourseStrategyById
 } from './db/database.js';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
