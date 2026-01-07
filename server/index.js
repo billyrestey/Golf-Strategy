@@ -621,6 +621,7 @@ app.post('/api/ghin/connect', optionalAuth, async (req, res) => {
       homeCoursePlays: scoresResult.homeCoursePlays,
       totalScores: scoresResult.totalScores,
       coursesPlayed: scoresResult.coursesPlayed,
+      scoresWithHoleData: scoresResult.scoresWithHoleData || 0,
       aggregateStats: scoresResult.aggregateStats,
       courseDetails: finalCourseDetails || null,
       courseLayoutFromScores: scoresResult.courseLayoutFromScores || null

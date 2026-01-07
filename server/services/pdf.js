@@ -429,9 +429,15 @@ export function generateStrategyPDF(analysis, userData) {
           });
         }
 
-        // Hole rows - Front 9
-        const front9 = analysis.holeByHoleStrategy.slice(0, 9);
-        const back9 = analysis.holeByHoleStrategy.slice(9, 18);
+        // Hole rows - handle both 9 and 18 hole courses
+        // Sort by hole number in case they're out of order
+        const sortedHoles = [...analysis.holeByHoleStrategy].sort((a, b) => a.hole - b.hole);
+        const totalHoles = sortedHoles.length;
+
+        // For 18 holes, split at 9. For 9 holes, show all in one section
+        const hasBackNine = totalHoles > 9;
+        const front9 = hasBackNine ? sortedHoles.slice(0, 9) : sortedHoles;
+        const back9 = hasBackNine ? sortedHoles.slice(9, 18) : [];
 
         const drawHoleRow = (hole, y) => {
           const rowHeight = 34;
@@ -509,26 +515,37 @@ export function generateStrategyPDF(analysis, userData) {
           return rowHeight;
         };
 
-        // Front 9
+        // Front 9 (or all holes for 9-hole courses)
+        const frontLabel = hasBackNine ? null : (sortedHoles[0]?.hole >= 10 ? 'BACK 9' : 'FRONT 9');
+        if (frontLabel) {
+          doc.rect(leftMargin, yPos, pageWidth, 16).fill(colors.darkGreen);
+          doc.fillColor('white')
+             .fontSize(9)
+             .font('Helvetica-Bold')
+             .text(frontLabel, leftMargin + pageWidth/2 - 25, yPos + 3, { lineBreak: false });
+          yPos += 19;
+        }
+
         front9.forEach((hole, i) => {
           const rowHeight = drawHoleRow(hole, yPos);
           yPos += rowHeight;
         });
 
-        // Turn divider
-        yPos += 3;
-        doc.rect(leftMargin, yPos, pageWidth, 18).fill(colors.darkGreen);
-        doc.fillColor('white')
-           .fontSize(9)
-           .font('Helvetica-Bold')
-           .text('BACK 9', leftMargin + pageWidth/2 - 20, yPos + 4, { lineBreak: false });
-        yPos += 21;
+        // Back 9 (only for 18-hole courses)
+        if (hasBackNine && back9.length > 0) {
+          yPos += 3;
+          doc.rect(leftMargin, yPos, pageWidth, 18).fill(colors.darkGreen);
+          doc.fillColor('white')
+             .fontSize(9)
+             .font('Helvetica-Bold')
+             .text('BACK 9', leftMargin + pageWidth/2 - 20, yPos + 4, { lineBreak: false });
+          yPos += 21;
 
-        // Back 9
-        back9.forEach((hole, i) => {
-          const rowHeight = drawHoleRow(hole, yPos);
-          yPos += rowHeight;
-        });
+          back9.forEach((hole, i) => {
+            const rowHeight = drawHoleRow(hole, yPos);
+            yPos += rowHeight;
+          });
+        }
 
         // Bottom section - ensure it fits
         const remainingSpace = doc.page.height - yPos - 50;

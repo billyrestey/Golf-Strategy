@@ -250,13 +250,14 @@ export default function App() {
       if (connectData.scores && connectData.scores.length > 0) {
         console.log('Scores from connect:', connectData.scores.length);
         console.log('Course details:', connectData.courseDetails ? 'Yes' : 'No');
+        console.log('Scores with hole data:', connectData.scoresWithHoleData);
         scoresData = {
           success: true,
           scores: connectData.scores,
           homeCourse: connectData.homeCourse,
           homeCourseId: connectData.homeCourseId,
           homeCoursePlays: connectData.homeCoursePlays,
-          scoresWithHoleData: connectData.scores.filter(s => s.holeDetails).length,
+          scoresWithHoleData: connectData.scoresWithHoleData || connectData.scores.filter(s => s.holeDetails?.length > 0).length,
           coursesPlayed: connectData.coursesPlayed || [],
           aggregateStats: connectData.aggregateStats,
           courseDetails: connectData.courseDetails || null
@@ -382,7 +383,8 @@ export default function App() {
         setGhinScores({
           scores: scoresData.scores,
           homeCourse: scoresData.homeCourse,
-          scoresWithHoleData: scoresData.scores.filter(s => s.holeScores?.length > 0).length
+          scoresWithHoleData: scoresData.scores.filter(s => s.holeDetails?.length > 0).length,
+          aggregateStats: scoresData.aggregateStats
         });
       }
     } catch (err) {
