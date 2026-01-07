@@ -391,12 +391,55 @@ function calculateAggregateStats(scores) {
     totalRounds: scores.length,
     averageScore: 0,
     averageDifferential: 0,
-    
+
     // Hole-by-hole patterns (only from rounds with detail)
     holePatterns: {},         // hole number -> average over/under
     troubleHoles: [],         // holes consistently over par
     birdieHoles: [],          // holes with birdie opportunities
-    
+
+    // Par-type analysis
+    parTypePerformance: {
+      par3: { avgScore: null, avgOverUnder: null, count: 0, birdies: 0, pars: 0, bogeys: 0, doubles: 0, triples: 0 },
+      par4: { avgScore: null, avgOverUnder: null, count: 0, birdies: 0, pars: 0, bogeys: 0, doubles: 0, triples: 0 },
+      par5: { avgScore: null, avgOverUnder: null, count: 0, birdies: 0, pars: 0, bogeys: 0, doubles: 0, triples: 0 }
+    },
+
+    // Scoring distribution overall
+    scoringDistribution: {
+      eagles: 0,
+      birdies: 0,
+      pars: 0,
+      bogeys: 0,
+      doubles: 0,
+      triples: 0,
+      worse: 0
+    },
+
+    // Approach play analysis
+    approachAnalysis: {
+      girPercentage: null,
+      girOnPar3: null,
+      girOnPar4: null,
+      girOnPar5: null,
+      greenMissPatterns: { short: 0, long: 0, left: 0, right: 0, total: 0 }
+    },
+
+    // Short game analysis
+    shortGameAnalysis: {
+      avgPuttsPerRound: null,
+      avgPuttsPerGIR: null,        // putts when hitting green
+      avgPuttsPerMissedGIR: null,  // scrambling putts
+      upAndDownRate: null,
+      sandSaveRate: null
+    },
+
+    // Penalty analysis
+    penaltyAnalysis: {
+      avgPenaltiesPerRound: null,
+      holesWithPenalties: [],
+      penaltyStrokesLost: 0
+    },
+
     // Miss patterns
     fairwayMissLeft: 0,
     fairwayMissRight: 0,
@@ -404,12 +447,12 @@ function calculateAggregateStats(scores) {
     greenMissLong: 0,
     greenMissLeft: 0,
     greenMissRight: 0,
-    
+
     // Overall stats
     avgFairwaysHit: null,
     avgGIR: null,
     avgPutts: null,
-    
+
     // Course-specific data
     courseStats: {}
   };
@@ -422,7 +465,7 @@ function calculateAggregateStats(scores) {
 
   // Process hole-by-hole data
   const scoresWithHoles = scores.filter(s => s.holeDetails && s.holeDetails.length > 0);
-  
+
   if (scoresWithHoles.length > 0) {
     // Aggregate hole patterns
     const holeData = {};
@@ -431,9 +474,26 @@ function calculateAggregateStats(scores) {
     let totalGreenMissLeft = 0, totalGreenMissRight = 0;
     let missCount = 0;
 
+    // Par-type tracking
+    const parTypeData = {
+      3: { scores: [], girs: 0, attempts: 0 },
+      4: { scores: [], girs: 0, attempts: 0 },
+      5: { scores: [], girs: 0, attempts: 0 }
+    };
+
+    // Short game tracking
+    let totalPuttsOnGIR = 0, girHolesWithPutts = 0;
+    let totalPuttsOnMissedGIR = 0, missedGIRHolesWithPutts = 0;
+    let upAndDownAttempts = 0, upAndDownSuccesses = 0;
+    let sandAttempts = 0, sandSaves = 0;
+
+    // Penalty tracking
+    let totalPenalties = 0;
+    const penaltyHoles = {};
+
     scoresWithHoles.forEach(score => {
       const courseName = score.courseName;
-      
+
       // Initialize course stats
       if (!stats.courseStats[courseName]) {
         stats.courseStats[courseName] = {
@@ -446,7 +506,8 @@ function calculateAggregateStats(scores) {
 
       score.holeDetails.forEach(hole => {
         const holeNum = hole.holeNumber;
-        
+        const par = hole.par;
+
         // Track hole performance
         if (!holeData[holeNum]) {
           holeData[holeNum] = { total: 0, count: 0, par: hole.par };
@@ -454,16 +515,105 @@ function calculateAggregateStats(scores) {
         if (hole.score) {
           holeData[holeNum].total += hole.overUnder;
           holeData[holeNum].count++;
+
+          // Par-type performance tracking
+          if (par >= 3 && par <= 5 && parTypeData[par]) {
+            parTypeData[par].scores.push(hole.score);
+            const overUnder = hole.score - par;
+
+            // Track scoring distribution by par type
+            if (overUnder <= -2) stats.scoringDistribution.eagles++;
+            else if (overUnder === -1) {
+              stats.scoringDistribution.birdies++;
+              stats.parTypePerformance[`par${par}`].birdies++;
+            }
+            else if (overUnder === 0) {
+              stats.scoringDistribution.pars++;
+              stats.parTypePerformance[`par${par}`].pars++;
+            }
+            else if (overUnder === 1) {
+              stats.scoringDistribution.bogeys++;
+              stats.parTypePerformance[`par${par}`].bogeys++;
+            }
+            else if (overUnder === 2) {
+              stats.scoringDistribution.doubles++;
+              stats.parTypePerformance[`par${par}`].doubles++;
+            }
+            else if (overUnder === 3) {
+              stats.scoringDistribution.triples++;
+              stats.parTypePerformance[`par${par}`].triples++;
+            }
+            else {
+              stats.scoringDistribution.worse++;
+            }
+          }
+
+          // GIR tracking by par type
+          if (hole.greenInRegulation !== null && par >= 3 && par <= 5) {
+            parTypeData[par].attempts++;
+            if (hole.greenInRegulation) {
+              parTypeData[par].girs++;
+            }
+          }
         }
 
         // Track miss patterns
         if (hole.fairwayMiss === 'left') totalFairwayMissLeft++;
         if (hole.fairwayMiss === 'right') totalFairwayMissRight++;
-        if (hole.greenMiss === 'short') totalGreenMissShort++;
-        if (hole.greenMiss === 'long') totalGreenMissLong++;
-        if (hole.greenMiss === 'left') totalGreenMissLeft++;
-        if (hole.greenMiss === 'right') totalGreenMissRight++;
+        if (hole.greenMiss === 'short') {
+          totalGreenMissShort++;
+          stats.approachAnalysis.greenMissPatterns.short++;
+        }
+        if (hole.greenMiss === 'long') {
+          totalGreenMissLong++;
+          stats.approachAnalysis.greenMissPatterns.long++;
+        }
+        if (hole.greenMiss === 'left') {
+          totalGreenMissLeft++;
+          stats.approachAnalysis.greenMissPatterns.left++;
+        }
+        if (hole.greenMiss === 'right') {
+          totalGreenMissRight++;
+          stats.approachAnalysis.greenMissPatterns.right++;
+        }
+        if (hole.greenMiss) {
+          stats.approachAnalysis.greenMissPatterns.total++;
+        }
         if (hole.fairwayMiss || hole.greenMiss) missCount++;
+
+        // Putting analysis - GIR vs missed GIR
+        if (hole.putts != null) {
+          if (hole.greenInRegulation === true) {
+            totalPuttsOnGIR += hole.putts;
+            girHolesWithPutts++;
+          } else if (hole.greenInRegulation === false) {
+            totalPuttsOnMissedGIR += hole.putts;
+            missedGIRHolesWithPutts++;
+            // Up and down = missed GIR but still made par or better
+            upAndDownAttempts++;
+            if (hole.score <= par) {
+              upAndDownSuccesses++;
+            }
+          }
+        }
+
+        // Sand save tracking
+        if (hole.sandShots && hole.sandShots > 0) {
+          sandAttempts++;
+          if (hole.sandSave === true || hole.score <= par) {
+            sandSaves++;
+          }
+        }
+
+        // Penalty tracking
+        if (hole.penalties && hole.penalties > 0) {
+          totalPenalties += hole.penalties;
+          if (!penaltyHoles[holeNum]) {
+            penaltyHoles[holeNum] = { count: 0, totalPenalties: 0 };
+          }
+          penaltyHoles[holeNum].count++;
+          penaltyHoles[holeNum].totalPenalties += hole.penalties;
+        }
 
         // Course-specific hole averages
         if (!stats.courseStats[courseName].holeAverages[holeNum]) {
@@ -475,6 +625,51 @@ function calculateAggregateStats(scores) {
         }
       });
     });
+
+    // Calculate par-type performance averages
+    [3, 4, 5].forEach(par => {
+      const data = parTypeData[par];
+      if (data.scores.length > 0) {
+        const avgScore = data.scores.reduce((a, b) => a + b, 0) / data.scores.length;
+        stats.parTypePerformance[`par${par}`].avgScore = Math.round(avgScore * 100) / 100;
+        stats.parTypePerformance[`par${par}`].avgOverUnder = Math.round((avgScore - par) * 100) / 100;
+        stats.parTypePerformance[`par${par}`].count = data.scores.length;
+      }
+      if (data.attempts > 0) {
+        stats.approachAnalysis[`girOnPar${par}`] = Math.round((data.girs / data.attempts) * 100);
+      }
+    });
+
+    // Calculate approach analysis
+    const totalGIRAttempts = parTypeData[3].attempts + parTypeData[4].attempts + parTypeData[5].attempts;
+    const totalGIRs = parTypeData[3].girs + parTypeData[4].girs + parTypeData[5].girs;
+    if (totalGIRAttempts > 0) {
+      stats.approachAnalysis.girPercentage = Math.round((totalGIRs / totalGIRAttempts) * 100);
+    }
+
+    // Calculate short game stats
+    if (girHolesWithPutts > 0) {
+      stats.shortGameAnalysis.avgPuttsPerGIR = Math.round((totalPuttsOnGIR / girHolesWithPutts) * 100) / 100;
+    }
+    if (missedGIRHolesWithPutts > 0) {
+      stats.shortGameAnalysis.avgPuttsPerMissedGIR = Math.round((totalPuttsOnMissedGIR / missedGIRHolesWithPutts) * 100) / 100;
+    }
+    if (upAndDownAttempts > 0) {
+      stats.shortGameAnalysis.upAndDownRate = Math.round((upAndDownSuccesses / upAndDownAttempts) * 100);
+    }
+    if (sandAttempts > 0) {
+      stats.shortGameAnalysis.sandSaveRate = Math.round((sandSaves / sandAttempts) * 100);
+    }
+
+    // Calculate penalty stats
+    if (scoresWithHoles.length > 0) {
+      stats.penaltyAnalysis.avgPenaltiesPerRound = Math.round((totalPenalties / scoresWithHoles.length) * 100) / 100;
+      stats.penaltyAnalysis.penaltyStrokesLost = totalPenalties;
+      stats.penaltyAnalysis.holesWithPenalties = Object.entries(penaltyHoles)
+        .map(([hole, data]) => ({ hole: parseInt(hole), ...data }))
+        .sort((a, b) => b.totalPenalties - a.totalPenalties)
+        .slice(0, 5);
+    }
 
     // Calculate hole patterns
     Object.entries(holeData).forEach(([holeNum, data]) => {

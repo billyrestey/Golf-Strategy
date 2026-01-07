@@ -424,10 +424,15 @@ export default function App() {
       if (ghinConnected && ghinScores?.scores) {
         submitData.append('ghinScores', JSON.stringify(ghinScores.scores));
       }
-      
+
       // Include course details if available (for accurate hole data)
       if (ghinScores?.courseDetails) {
         submitData.append('courseDetails', JSON.stringify(ghinScores.courseDetails));
+      }
+
+      // Include aggregate stats for advanced analysis
+      if (ghinScores?.aggregateStats) {
+        submitData.append('aggregateStats', JSON.stringify(ghinScores.aggregateStats));
       }
       
       // Append scorecard files

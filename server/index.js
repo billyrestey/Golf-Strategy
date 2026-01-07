@@ -171,7 +171,7 @@ app.get('/api/health', (req, res) => {
 // Main analysis endpoint - supports both preview and authenticated modes
 app.post('/api/analyze', analysisLimiter, optionalAuth, upload.array('scorecards', 10), handleMulterError, checkTotalSize, async (req, res) => {
   try {
-    const { name, handicap, homeCourse, missPattern, missDescription, strengths, preview, ghinScores, courseDetails } = req.body;
+    const { name, handicap, homeCourse, missPattern, missDescription, strengths, preview, ghinScores, courseDetails, aggregateStats } = req.body;
     const isPreview = preview === 'true';
     const userId = req.user?.userId;
 
@@ -198,7 +198,10 @@ app.post('/api/analyze', analysisLimiter, optionalAuth, upload.array('scorecards
     
     // Parse course details if provided
     const parsedCourseDetails = courseDetails ? (typeof courseDetails === 'string' ? JSON.parse(courseDetails) : courseDetails) : null;
-    
+
+    // Parse aggregate stats if provided
+    const parsedAggregateStats = aggregateStats ? (typeof aggregateStats === 'string' ? JSON.parse(aggregateStats) : aggregateStats) : null;
+
     // Convert uploaded files to base64
     const scorecardImages = req.files?.map(file => ({
       type: 'image',
@@ -224,7 +227,8 @@ app.post('/api/analyze', analysisLimiter, optionalAuth, upload.array('scorecards
       strengths: parsedStrengths || [],
       scorecardImages,
       ghinScores: parsedGhinScores,
-      courseDetails: parsedCourseDetails
+      courseDetails: parsedCourseDetails,
+      aggregateStats: parsedAggregateStats
     });
 
     // Preview mode - just return analysis, don't save or charge

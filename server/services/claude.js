@@ -7,16 +7,17 @@ const anthropic = new Anthropic({
 /**
  * Analyzes golf scorecards and player data to generate a personalized strategy
  */
-export async function analyzeGolfGame({ 
-  name, 
-  handicap, 
-  homeCourse, 
-  missPattern, 
-  missDescription, 
-  strengths, 
+export async function analyzeGolfGame({
+  name,
+  handicap,
+  homeCourse,
+  missPattern,
+  missDescription,
+  strengths,
   scorecardImages,
   ghinScores,
-  courseDetails 
+  courseDetails,
+  aggregateStats
 }) {
   
   // Step 1: Get score data from either GHIN or scorecard images
@@ -62,7 +63,8 @@ export async function analyzeGolfGame({
     missDescription,
     strengths,
     extractedScores,
-    courseDetails
+    courseDetails,
+    aggregateStats
   });
 
   return analysis;
@@ -129,19 +131,21 @@ Only return valid JSON, no other text.`
 /**
  * Generates a comprehensive golf strategy based on all available data
  */
-async function generateStrategy({ 
-  name, 
-  handicap, 
-  homeCourse, 
-  missPattern, 
-  missDescription, 
-  strengths, 
+async function generateStrategy({
+  name,
+  handicap,
+  homeCourse,
+  missPattern,
+  missDescription,
+  strengths,
   extractedScores,
-  courseDetails 
+  courseDetails,
+  aggregateStats
 }) {
   
   const hasScoreData = extractedScores?.rounds?.length > 0;
-  
+  const hasAggregateStats = aggregateStats && Object.keys(aggregateStats).length > 0;
+
   // Check for course data - either from API or extracted from scores
   const hasCourseData = courseDetails?.tees?.[0]?.holes?.length > 0;
   
@@ -179,7 +183,125 @@ ${holesFormatted}
 `;
     }
   }
-  
+
+  // Build aggregate stats section for comprehensive analysis
+  let aggregateStatsSection = '';
+  if (hasAggregateStats) {
+    const parts = [];
+
+    // Par-type performance
+    const ptp = aggregateStats.parTypePerformance;
+    if (ptp) {
+      const par3Info = ptp.par3?.avgScore ? `Par 3s: avg ${ptp.par3.avgScore} (${ptp.par3.avgOverUnder > 0 ? '+' : ''}${ptp.par3.avgOverUnder} vs par) - ${ptp.par3.count} holes played` : null;
+      const par4Info = ptp.par4?.avgScore ? `Par 4s: avg ${ptp.par4.avgScore} (${ptp.par4.avgOverUnder > 0 ? '+' : ''}${ptp.par4.avgOverUnder} vs par) - ${ptp.par4.count} holes played` : null;
+      const par5Info = ptp.par5?.avgScore ? `Par 5s: avg ${ptp.par5.avgScore} (${ptp.par5.avgOverUnder > 0 ? '+' : ''}${ptp.par5.avgOverUnder} vs par) - ${ptp.par5.count} holes played` : null;
+
+      if (par3Info || par4Info || par5Info) {
+        parts.push(`### PAR-TYPE PERFORMANCE (Critical for strategy)
+${par3Info || 'Par 3s: No data'}
+${par4Info || 'Par 4s: No data'}
+${par5Info || 'Par 5s: No data'}`);
+      }
+
+      // Scoring distribution by par type
+      if (ptp.par3?.count > 0 || ptp.par4?.count > 0 || ptp.par5?.count > 0) {
+        const distParts = [];
+        if (ptp.par3?.count > 0) {
+          distParts.push(`Par 3s: ${ptp.par3.birdies} birdies, ${ptp.par3.pars} pars, ${ptp.par3.bogeys} bogeys, ${ptp.par3.doubles} doubles+`);
+        }
+        if (ptp.par4?.count > 0) {
+          distParts.push(`Par 4s: ${ptp.par4.birdies} birdies, ${ptp.par4.pars} pars, ${ptp.par4.bogeys} bogeys, ${ptp.par4.doubles} doubles+`);
+        }
+        if (ptp.par5?.count > 0) {
+          distParts.push(`Par 5s: ${ptp.par5.birdies} birdies, ${ptp.par5.pars} pars, ${ptp.par5.bogeys} bogeys, ${ptp.par5.doubles} doubles+`);
+        }
+        if (distParts.length > 0) {
+          parts.push(`### SCORING DISTRIBUTION BY PAR TYPE
+${distParts.join('\n')}`);
+        }
+      }
+    }
+
+    // Overall scoring distribution
+    const sd = aggregateStats.scoringDistribution;
+    if (sd && (sd.birdies || sd.pars || sd.bogeys || sd.doubles)) {
+      parts.push(`### OVERALL SCORING DISTRIBUTION
+Eagles: ${sd.eagles || 0}, Birdies: ${sd.birdies || 0}, Pars: ${sd.pars || 0}, Bogeys: ${sd.bogeys || 0}, Doubles: ${sd.doubles || 0}, Triples+: ${(sd.triples || 0) + (sd.worse || 0)}`);
+    }
+
+    // Approach play analysis
+    const aa = aggregateStats.approachAnalysis;
+    if (aa) {
+      const approachParts = [];
+      if (aa.girPercentage != null) approachParts.push(`Overall GIR: ${aa.girPercentage}%`);
+      if (aa.girOnPar3 != null) approachParts.push(`GIR on Par 3s: ${aa.girOnPar3}%`);
+      if (aa.girOnPar4 != null) approachParts.push(`GIR on Par 4s: ${aa.girOnPar4}%`);
+      if (aa.girOnPar5 != null) approachParts.push(`GIR on Par 5s: ${aa.girOnPar5}%`);
+
+      if (aa.greenMissPatterns?.total > 0) {
+        const gmp = aa.greenMissPatterns;
+        const total = gmp.total;
+        approachParts.push(`Green miss patterns: Short ${Math.round(gmp.short/total*100)}%, Long ${Math.round(gmp.long/total*100)}%, Left ${Math.round(gmp.left/total*100)}%, Right ${Math.round(gmp.right/total*100)}%`);
+      }
+
+      if (approachParts.length > 0) {
+        parts.push(`### APPROACH PLAY ANALYSIS
+${approachParts.join('\n')}`);
+      }
+    }
+
+    // Short game analysis
+    const sga = aggregateStats.shortGameAnalysis;
+    if (sga) {
+      const sgParts = [];
+      if (sga.avgPuttsPerGIR != null) sgParts.push(`Avg putts when hitting green: ${sga.avgPuttsPerGIR}`);
+      if (sga.avgPuttsPerMissedGIR != null) sgParts.push(`Avg putts when missing green: ${sga.avgPuttsPerMissedGIR}`);
+      if (sga.upAndDownRate != null) sgParts.push(`Up-and-down rate: ${sga.upAndDownRate}%`);
+      if (sga.sandSaveRate != null) sgParts.push(`Sand save rate: ${sga.sandSaveRate}%`);
+
+      if (sgParts.length > 0) {
+        parts.push(`### SHORT GAME & PUTTING ANALYSIS
+${sgParts.join('\n')}`);
+      }
+    }
+
+    // Penalty analysis
+    const pa = aggregateStats.penaltyAnalysis;
+    if (pa && pa.avgPenaltiesPerRound != null) {
+      let penaltyText = `Avg penalties per round: ${pa.avgPenaltiesPerRound}`;
+      if (pa.holesWithPenalties?.length > 0) {
+        penaltyText += `\nWorst penalty holes: ${pa.holesWithPenalties.map(h => `#${h.hole} (${h.totalPenalties} total)`).join(', ')}`;
+      }
+      parts.push(`### PENALTY ANALYSIS
+${penaltyText}`);
+    }
+
+    // Trouble holes and birdie holes from aggregate analysis
+    if (aggregateStats.troubleHoles?.length > 0) {
+      parts.push(`### IDENTIFIED TROUBLE HOLES (data-driven)
+${aggregateStats.troubleHoles.slice(0, 5).map(h => `Hole ${h.hole} (par ${h.par}): avg +${h.avgOver.toFixed(1)} over par`).join('\n')}`);
+    }
+
+    if (aggregateStats.birdieHoles?.length > 0) {
+      parts.push(`### IDENTIFIED BIRDIE OPPORTUNITIES (data-driven)
+${aggregateStats.birdieHoles.slice(0, 5).map(h => `Hole ${h.hole} (par ${h.par}): avg ${h.avgOver > 0 ? '+' : ''}${h.avgOver.toFixed(1)} vs par`).join('\n')}`);
+    }
+
+    // Fairway miss patterns
+    if (aggregateStats.fairwayMissLeft > 0 || aggregateStats.fairwayMissRight > 0) {
+      parts.push(`### FAIRWAY MISS PATTERNS (from actual data)
+Miss left: ${aggregateStats.fairwayMissLeft}% of misses
+Miss right: ${aggregateStats.fairwayMissRight}% of misses`);
+    }
+
+    if (parts.length > 0) {
+      aggregateStatsSection = `
+## PERFORMANCE ANALYTICS (Use this data heavily in your analysis)
+${parts.join('\n\n')}
+`;
+    }
+  }
+
   const prompt = `You are an expert golf coach and course strategist. Analyze this golfer's game and create a comprehensive improvement strategy.
 
 ## GOLFER PROFILE
@@ -189,13 +311,13 @@ ${holesFormatted}
 - Primary Miss Pattern: ${getMissDescription(missPattern)}
 ${missDescription ? `- Additional Context: ${missDescription}` : ''}
 - Self-Reported Strengths: ${strengths.length > 0 ? strengths.join(', ') : 'None specified'}
-${courseLayoutSection}
+${courseLayoutSection}${aggregateStatsSection}
 ${hasScoreData ? `## SCORECARD DATA
 ${JSON.stringify(extractedScores, null, 2)}` : '## NO SCORECARD DATA PROVIDED'}
 
 ## YOUR TASK
 
-Analyze this golfer's game and return a JSON object with the following structure. Be specific and actionable. Tailor everything to their miss pattern and strengths.
+Analyze this golfer's game and return a JSON object with the following structure. Be specific and actionable. ${hasAggregateStats ? 'PRIORITIZE the PERFORMANCE ANALYTICS data - this is actual measured data and should drive your recommendations more than self-reported miss patterns.' : 'Tailor everything to their miss pattern and strengths.'}
 ${hasCourseData ? '\nIMPORTANT: Use the ACTUAL course layout data provided above for holeByHoleStrategy. Do NOT invent or guess hole yardages/pars.' : '\nIMPORTANT: No actual course hole data is available. Set holeByHoleStrategy to an EMPTY ARRAY []. Do not generate fake hole data.'}
 
 {
@@ -203,24 +325,75 @@ ${hasCourseData ? '\nIMPORTANT: Use the ACTUAL course layout data provided above
     "currentHandicap": number,
     "targetHandicap": number (realistic 12-month goal),
     "potentialStrokeDrop": number,
-    "keyInsight": "One sentence summary of biggest opportunity"
+    "keyInsight": "One sentence summary of biggest opportunity - should reference actual data patterns if available",
+    "biggestStrokeSaver": "The single area where they can save the most strokes (based on data analysis)"
+  },
+  "parTypeStrategies": {
+    "par3": {
+      "currentPerformance": "Summary of how they play par 3s based on data",
+      "mainIssue": "What's costing them strokes on par 3s (club selection, green miss pattern, etc.)",
+      "strategy": "Specific tactical approach for par 3s",
+      "targetScore": "Average score goal",
+      "keyTip": "One actionable tip for par 3s"
+    },
+    "par4": {
+      "currentPerformance": "Summary of how they play par 4s based on data",
+      "mainIssue": "What's costing them strokes on par 4s",
+      "strategy": "Specific tactical approach for par 4s",
+      "targetScore": "Average score goal",
+      "keyTip": "One actionable tip for par 4s"
+    },
+    "par5": {
+      "currentPerformance": "Summary of how they play par 5s based on data",
+      "mainIssue": "What's costing them strokes on par 5s",
+      "strategy": "Specific tactical approach - layup vs go decisions",
+      "targetScore": "Average score goal",
+      "keyTip": "One actionable tip for par 5s"
+    }
+  },
+  "scoringAreaAnalysis": {
+    "teeToGreen": {
+      "assessment": "How well are they getting to the green?",
+      "strokesLost": "Estimated strokes lost here per round",
+      "improvement": "Specific advice to improve"
+    },
+    "approachPlay": {
+      "assessment": "GIR analysis and green miss patterns",
+      "strokesLost": "Estimated strokes lost here per round",
+      "improvement": "Club selection tips, miss pattern advice, distance control tips"
+    },
+    "shortGame": {
+      "assessment": "Up and down rate, typical miss around greens",
+      "strokesLost": "Estimated strokes lost here per round",
+      "improvement": "Chipping and pitching advice based on their miss patterns"
+    },
+    "putting": {
+      "assessment": "Putting analysis - 3-putts, make percentage",
+      "strokesLost": "Estimated strokes lost here per round",
+      "improvement": "Speed control, read, routine advice"
+    },
+    "penalties": {
+      "assessment": "How many penalty strokes per round and where",
+      "strokesLost": "Strokes lost to penalties per round",
+      "improvement": "Course management to avoid penalty situations"
+    }
   },
   "troubleHoles": [
     {
       "type": "Category of hole (e.g., 'Long Par 4s over 400 yards')",
       "specificHoles": [list of hole numbers if scorecard data available, else null],
       "averageScore": number or null,
-      "problem": "Why this hole type hurts them based on their miss pattern",
-      "strategy": "Specific tactical advice",
+      "problem": "Why this hole type hurts them - reference DATA if available",
+      "strategy": "Specific tactical advice covering tee shot, approach, AND short game",
       "acceptableScore": "Bogey" or "Par" etc,
-      "clubRecommendation": "What to hit off the tee"
+      "fullPlan": "Complete hole strategy from tee to green"
     }
   ],
   "strengthHoles": [
     {
       "type": "Category of hole",
       "specificHoles": [hole numbers or null],
-      "opportunity": "Why they can score here",
+      "opportunity": "Why they can score here - reference DATA if available",
       "strategy": "How to attack",
       "targetScore": "Par" or "Birdie"
     }
@@ -246,23 +419,32 @@ ${hasCourseData ? '\nIMPORTANT: Use the ACTUAL course layout data provided above
       "par": 4,
       "yards": 385,
       "teeShot": "Driver OK" or "3-Wood" or "Hybrid",
+      "approachStrategy": "How to play the approach shot - club selection, target, miss side",
+      "missSide": "If you miss the green, miss here (short/long/left/right)",
       "light": "green" or "yellow" or "red",
-      "strategy": "Brief strategy for this specific hole",
-      "notes": "Any additional tips or warnings"
+      "strategy": "Brief overall strategy for this specific hole",
+      "notes": "Any additional tips based on their historical performance on this hole"
     }
   ],
   "practicePlan": {
+    "priorityAreas": [
+      {
+        "area": "Name of area (based on data - e.g., 'Par 3 tee shots', 'Approach play', 'Putting')",
+        "reason": "Why this is priority #1 based on data analysis",
+        "expectedImprovement": "Strokes per round you could save"
+      }
+    ],
     "weeklySchedule": [
       {
         "session": "Session name",
         "duration": "45 min",
-        "focus": "What skill this addresses",
+        "focus": "What skill this addresses - tied to data analysis",
         "drills": [
           {
             "name": "Drill name",
             "description": "How to do it",
             "reps": "10 balls",
-            "why": "Why this helps their specific issue"
+            "why": "Why this helps based on their actual data patterns"
           }
         ]
       }
@@ -285,33 +467,39 @@ ${hasCourseData ? '\nIMPORTANT: Use the ACTUAL course layout data provided above
     "penaltiesPerRound": "< 2",
     "gir": "25%",
     "upAndDown": "35%",
-    "puttsPerRound": "32"
+    "puttsPerRound": "32",
+    "par3Average": "Target average score on par 3s",
+    "par4Average": "Target average score on par 4s",
+    "par5Average": "Target average score on par 5s"
   },
   "thirtyDayPlan": [
     {
       "week": 1,
-      "focus": "Main focus area",
+      "focus": "Main focus area - based on data analysis",
       "goals": ["Specific measurable goals"]
     }
   ]
 }
 
 Important guidelines:
-1. Be specific to their miss pattern (${missPattern}). A slicer needs different advice than a hooker.
-2. If scorecard data is available, include all 18 holes in holeByHoleStrategy with specific advice based on their patterns.
-3. If NO scorecard data, still generate holeByHoleStrategy with general advice for typical hole types at a course of this caliber.
-4. Practice drills should directly address their miss pattern.
-5. Be encouraging but realistic about improvement timeline.
-6. The strategy should feel personalized, not generic.
-7. For holeByHoleStrategy, "light" should be: "red" for danger holes, "yellow" for conditional, "green" for birdie opportunities.
-8. NOTE: Many golfers post 9-hole rounds to GHIN (which get combined into 18-hole equivalents). Do NOT make deductions about "inconsistent play" or "mental game issues" based on round data - 9-hole rounds are completely normal and common.
+1. ${hasAggregateStats ? 'PRIORITIZE DATA over self-reported miss patterns. If the data shows they miss greens short 60% of the time, address that. If they struggle on par 5s, focus there.' : 'Be specific to their miss pattern.'} A slicer needs different advice than a hooker, but DATA trumps self-reports.
+2. If performance analytics show par-type weaknesses, make those central to your recommendations.
+3. Address ALL scoring areas - not just tee shots. Approach play, short game, and putting improvements often yield faster results.
+4. If scorecard data is available, include all 18 holes in holeByHoleStrategy with approach strategy and miss side for EACH hole.
+5. Practice plan priority areas should be ranked by strokes-saved potential based on actual data.
+6. Be encouraging but realistic about improvement timeline.
+7. The strategy should feel personalized and data-driven, not generic.
+8. For holeByHoleStrategy, "light" should be: "red" for danger holes, "yellow" for conditional, "green" for birdie opportunities.
+9. NOTE: Many golfers post 9-hole rounds to GHIN. Do NOT make deductions about "inconsistent play" based on round data.
+10. If green miss pattern data is available, use it to recommend approach targets and miss sides.
+11. Consider penalty analysis - if they're losing strokes to penalties on specific holes, address course management.
 
 Return ONLY the JSON object, no other text.`;
 
   try {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
+      max_tokens: 8192,
       messages: [{ role: 'user', content: prompt }]
     });
 
