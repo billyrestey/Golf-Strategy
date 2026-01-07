@@ -582,6 +582,202 @@ export function generateStrategyPDF(analysis, userData) {
         }
       }
 
+      // ========== PAGE 4: HANDICAP IMPROVEMENT PATH ==========
+      if (analysis.handicapPath) {
+        doc.addPage();
+
+        // Header
+        doc.rect(0, 0, doc.page.width, 80).fill(colors.darkGreen);
+
+        doc.fillColor('white')
+           .fontSize(22)
+           .font('Helvetica-Bold')
+           .text('YOUR PATH TO IMPROVEMENT', leftMargin, 20, { width: pageWidth });
+
+        const currentHcp = analysis.handicapPath.currentLevel?.handicap || analysis.summary?.currentHandicap || userData.handicap;
+        const targetHcp = analysis.handicapPath.targetLevel?.handicap || analysis.summary?.targetHandicap;
+        doc.fontSize(12)
+           .font('Helvetica')
+           .fillColor('rgba(255,255,255,0.8)')
+           .text(`${currentHcp} → ${targetHcp} Handicap | ${userData.name}`, leftMargin, 50, { lineBreak: false });
+
+        let yPos = 100;
+
+        // Current vs Target comparison
+        const boxWidth = (pageWidth - 20) / 2;
+
+        // Current Level Box
+        doc.rect(leftMargin, yPos, boxWidth, 90).fill('#fff8e1');
+        doc.rect(leftMargin, yPos, 4, 90).fill('#ffc107');
+
+        doc.fillColor('#795548')
+           .fontSize(9)
+           .font('Helvetica-Bold')
+           .text('CURRENT LEVEL', leftMargin + 15, yPos + 10);
+
+        doc.fillColor('#ffc107')
+           .fontSize(28)
+           .font('Helvetica-Bold')
+           .text(String(currentHcp), leftMargin + 15, yPos + 25);
+
+        if (analysis.handicapPath.currentLevel?.playerProfile) {
+          doc.fillColor('#795548')
+             .fontSize(8)
+             .font('Helvetica')
+             .text(analysis.handicapPath.currentLevel.playerProfile.substring(0, 100), leftMargin + 15, yPos + 58, { width: boxWidth - 30, height: 28 });
+        }
+
+        // Target Level Box
+        doc.rect(leftMargin + boxWidth + 20, yPos, boxWidth, 90).fill(colors.lightGray);
+        doc.rect(leftMargin + boxWidth + 20, yPos, 4, 90).fill(colors.lightGreen);
+
+        doc.fillColor(colors.darkGreen)
+           .fontSize(9)
+           .font('Helvetica-Bold')
+           .text('TARGET LEVEL', leftMargin + boxWidth + 35, yPos + 10);
+
+        doc.fillColor(colors.lightGreen)
+           .fontSize(28)
+           .font('Helvetica-Bold')
+           .text(String(targetHcp), leftMargin + boxWidth + 35, yPos + 25);
+
+        if (analysis.handicapPath.targetLevel?.playerProfile) {
+          doc.fillColor(colors.gray)
+             .fontSize(8)
+             .font('Helvetica')
+             .text(analysis.handicapPath.targetLevel.playerProfile.substring(0, 100), leftMargin + boxWidth + 35, yPos + 58, { width: boxWidth - 30, height: 28 });
+        }
+
+        yPos += 105;
+
+        // Gap Analysis
+        if (analysis.handicapPath.gapAnalysis?.length > 0) {
+          doc.fillColor(colors.darkGreen)
+             .fontSize(11)
+             .font('Helvetica-Bold')
+             .text('WHAT NEEDS TO IMPROVE', leftMargin, yPos);
+
+          yPos += 20;
+
+          const gapColWidth = (pageWidth - 20) / Math.min(analysis.handicapPath.gapAnalysis.length, 3);
+          analysis.handicapPath.gapAnalysis.slice(0, 3).forEach((gap, i) => {
+            const x = leftMargin + (i * (gapColWidth + 10));
+
+            doc.rect(x, yPos, gapColWidth, 70).fill(colors.lightGray);
+
+            const diffColor = gap.difficulty?.toLowerCase() === 'hard' ? '#c44536' :
+                             gap.difficulty?.toLowerCase() === 'medium' ? '#d4a017' : colors.lightGreen;
+            doc.rect(x, yPos, gapColWidth, 4).fill(diffColor);
+
+            doc.fillColor(colors.darkGreen)
+               .fontSize(9)
+               .font('Helvetica-Bold')
+               .text(gap.area || '', x + 10, yPos + 14, { width: gapColWidth - 20, lineBreak: false });
+
+            doc.fillColor(colors.gray)
+               .fontSize(8)
+               .font('Helvetica')
+               .text(`${gap.current || '?'} → ${gap.required || '?'}`, x + 10, yPos + 30, { lineBreak: false });
+
+            doc.fillColor(colors.mediumGreen)
+               .fontSize(8)
+               .font('Helvetica-Bold')
+               .text(gap.strokesToGain ? `${gap.strokesToGain} strokes/round` : '', x + 10, yPos + 45, { lineBreak: false });
+
+            doc.fillColor(colors.gray)
+               .fontSize(7)
+               .font('Helvetica')
+               .text(gap.difficulty ? `${gap.difficulty} to improve` : '', x + 10, yPos + 58, { lineBreak: false });
+          });
+
+          yPos += 85;
+        }
+
+        // Improvement Priorities
+        if (analysis.handicapPath.improvementPriorities?.length > 0) {
+          doc.fillColor(colors.darkGreen)
+             .fontSize(11)
+             .font('Helvetica-Bold')
+             .text('FOCUS AREAS (IN ORDER OF PRIORITY)', leftMargin, yPos);
+
+          yPos += 20;
+
+          analysis.handicapPath.improvementPriorities.slice(0, 3).forEach((priority, i) => {
+            doc.rect(leftMargin, yPos, pageWidth, 55).fill(colors.lightGray);
+            doc.rect(leftMargin, yPos, 4, 55).fill(colors.lightGreen);
+
+            // Rank number
+            doc.fillColor(colors.lightGreen)
+               .fontSize(18)
+               .font('Helvetica-Bold')
+               .text(`#${priority.rank || i + 1}`, leftMargin + 15, yPos + 8);
+
+            // Skill name
+            doc.fillColor(colors.darkGreen)
+               .fontSize(10)
+               .font('Helvetica-Bold')
+               .text(priority.skill || '', leftMargin + 50, yPos + 8, { width: pageWidth - 70, lineBreak: false });
+
+            // Why
+            doc.fillColor(colors.gray)
+               .fontSize(8)
+               .font('Helvetica')
+               .text((priority.why || '').substring(0, 80), leftMargin + 50, yPos + 22, { width: pageWidth - 70, height: 12 });
+
+            // How to improve
+            doc.fillColor(colors.mediumGreen)
+               .fontSize(8)
+               .font('Helvetica-Oblique')
+               .text((priority.howToImprove || '').substring(0, 90), leftMargin + 50, yPos + 38, { width: pageWidth - 70, height: 12 });
+
+            yPos += 60;
+          });
+        }
+
+        // Quick Wins (if space allows)
+        const remainingSpace = doc.page.height - yPos - 80;
+        if (analysis.handicapPath.quickWins?.length > 0 && remainingSpace > 100) {
+          yPos += 10;
+
+          doc.fillColor(colors.darkGreen)
+             .fontSize(11)
+             .font('Helvetica-Bold')
+             .text('QUICK WINS — START TODAY', leftMargin, yPos);
+
+          yPos += 20;
+
+          analysis.handicapPath.quickWins.slice(0, 3).forEach((win, i) => {
+            doc.circle(leftMargin + 8, yPos + 6, 6).fill(colors.lightGreen);
+
+            doc.fillColor('white')
+               .fontSize(8)
+               .font('Helvetica-Bold')
+               .text('✓', leftMargin + 5, yPos + 2);
+
+            doc.fillColor(colors.darkGreen)
+               .fontSize(9)
+               .font('Helvetica')
+               .text((win.tip || '').substring(0, 80), leftMargin + 25, yPos, { width: pageWidth - 120, lineBreak: false });
+
+            doc.fillColor(colors.mediumGreen)
+               .fontSize(8)
+               .font('Helvetica-Bold')
+               .text(win.impact || '', leftMargin + pageWidth - 90, yPos, { width: 80, align: 'right', lineBreak: false });
+
+            yPos += 22;
+          });
+        }
+
+        // Footer
+        const footerY = doc.page.height - 50;
+        doc.rect(0, footerY, doc.page.width, 50).fill(colors.darkGreen);
+
+        doc.fillColor('white')
+           .fontSize(8)
+           .font('Helvetica')
+           .text('Generated by Golf Strategy • golfstrategy.app', leftMargin, footerY + 20, { lineBreak: false });
+      }
+
       doc.end();
 
     } catch (error) {

@@ -472,6 +472,62 @@ ${hasCourseData ? '\nIMPORTANT: Use the ACTUAL course layout data provided above
     "par4Average": "Target average score on par 4s",
     "par5Average": "Target average score on par 5s"
   },
+  "handicapPath": {
+    "currentLevel": {
+      "handicap": number,
+      "playerProfile": "Description of typical player at this level (e.g., 'A 15-handicap typically shoots 87-90, hits 3-4 GIR per round...')",
+      "strengths": ["What this player does relatively well based on data"],
+      "weaknesses": ["Key areas holding them back based on data"]
+    },
+    "targetLevel": {
+      "handicap": number,
+      "playerProfile": "Description of what a player at target level looks like",
+      "requiredStats": {
+        "fairwaysHit": "% needed at target level",
+        "gir": "% needed at target level",
+        "puttsPerRound": "putts needed at target level",
+        "upAndDown": "% needed at target level",
+        "penaltiesPerRound": "max penalties at target level"
+      },
+      "keyDifferences": "What separates current level from target level"
+    },
+    "gapAnalysis": [
+      {
+        "area": "Skill area (e.g., 'Greens in Regulation')",
+        "current": "Current stat/performance",
+        "required": "What's needed at target handicap",
+        "gap": "The difference to close",
+        "difficulty": "Easy/Medium/Hard to improve",
+        "strokesToGain": "Estimated strokes per round this would save"
+      }
+    ],
+    "improvementPriorities": [
+      {
+        "rank": 1,
+        "skill": "Skill to focus on",
+        "why": "Why this is the #1 priority based on their data",
+        "currentLevel": "Where they are now",
+        "targetLevel": "Where they need to be",
+        "howToImprove": "Specific actionable advice",
+        "expectedTimeframe": "How long to see improvement"
+      }
+    ],
+    "milestones": [
+      {
+        "handicap": "Intermediate handicap goal (e.g., if going from 15 to 10, first milestone might be 13)",
+        "statsToReach": "Key stats to hit at this milestone",
+        "focusAreas": ["What to work on to reach this milestone"],
+        "estimatedTimeframe": "Realistic time to reach this milestone"
+      }
+    ],
+    "quickWins": [
+      {
+        "tip": "Something they can implement immediately",
+        "impact": "Expected stroke savings",
+        "effort": "Low/Medium effort required"
+      }
+    ]
+  },
   "thirtyDayPlan": [
     {
       "week": 1,
@@ -493,6 +549,16 @@ Important guidelines:
 9. NOTE: Many golfers post 9-hole rounds to GHIN. Do NOT make deductions about "inconsistent play" based on round data.
 10. If green miss pattern data is available, use it to recommend approach targets and miss sides.
 11. Consider penalty analysis - if they're losing strokes to penalties on specific holes, address course management.
+12. HANDICAP PATH: Use these benchmark stats for different handicap levels:
+    - Scratch (0): 65% fairways, 67% GIR, 29 putts, 60% up-and-down, <0.5 penalties
+    - 5 handicap: 55% fairways, 50% GIR, 31 putts, 50% up-and-down, <1 penalty
+    - 10 handicap: 45% fairways, 35% GIR, 33 putts, 40% up-and-down, <1.5 penalties
+    - 15 handicap: 35% fairways, 22% GIR, 35 putts, 30% up-and-down, <2 penalties
+    - 20 handicap: 30% fairways, 12% GIR, 37 putts, 20% up-and-down, <3 penalties
+    - 25+ handicap: 25% fairways, 5% GIR, 38+ putts, 15% up-and-down, 3+ penalties
+    Use these to create realistic gap analysis and milestones. If they're a 15 going to 10, show what stats need to improve.
+13. For improvementPriorities, rank by IMPACT - which skill improvement will drop the most strokes? Usually: reducing penalties > improving GIR > improving up-and-down > reducing 3-putts.
+14. Include 2-3 milestones for handicap drops of 5+ strokes (e.g., 18→10 should have milestones at 15 and 12).
 
 Return ONLY the JSON object, no other text.`;
 

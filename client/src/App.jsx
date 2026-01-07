@@ -1270,6 +1270,153 @@ export default function App() {
           </div>
         )}
 
+        {/* Handicap Improvement Path */}
+        {analysis.handicapPath && (
+          <section className="results-section handicap-path-section">
+            <div className="section-header">
+              <span className="section-icon">📈</span>
+              <h2>Your Path to {analysis.handicapPath.targetLevel?.handicap || analysis.summary?.targetHandicap}</h2>
+            </div>
+
+            {/* Current vs Target Level */}
+            <div className="handicap-comparison">
+              <div className="level-card current">
+                <div className="level-badge">NOW</div>
+                <div className="level-handicap">{analysis.handicapPath.currentLevel?.handicap || analysis.summary?.currentHandicap}</div>
+                <div className="level-profile">{analysis.handicapPath.currentLevel?.playerProfile}</div>
+                {analysis.handicapPath.currentLevel?.weaknesses?.length > 0 && (
+                  <div className="level-weaknesses">
+                    <strong>Areas to improve:</strong>
+                    <ul>
+                      {analysis.handicapPath.currentLevel.weaknesses.map((w, i) => (
+                        <li key={i}>{w}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <div className="level-arrow">→</div>
+              <div className="level-card target">
+                <div className="level-badge">GOAL</div>
+                <div className="level-handicap">{analysis.handicapPath.targetLevel?.handicap || analysis.summary?.targetHandicap}</div>
+                <div className="level-profile">{analysis.handicapPath.targetLevel?.playerProfile}</div>
+                {analysis.handicapPath.targetLevel?.requiredStats && (
+                  <div className="required-stats">
+                    <strong>Stats needed:</strong>
+                    <div className="stats-grid">
+                      {analysis.handicapPath.targetLevel.requiredStats.fairwaysHit && (
+                        <span className="stat-item">FW: {analysis.handicapPath.targetLevel.requiredStats.fairwaysHit}</span>
+                      )}
+                      {analysis.handicapPath.targetLevel.requiredStats.gir && (
+                        <span className="stat-item">GIR: {analysis.handicapPath.targetLevel.requiredStats.gir}</span>
+                      )}
+                      {analysis.handicapPath.targetLevel.requiredStats.puttsPerRound && (
+                        <span className="stat-item">Putts: {analysis.handicapPath.targetLevel.requiredStats.puttsPerRound}</span>
+                      )}
+                      {analysis.handicapPath.targetLevel.requiredStats.upAndDown && (
+                        <span className="stat-item">Up&Down: {analysis.handicapPath.targetLevel.requiredStats.upAndDown}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Gap Analysis */}
+            {analysis.handicapPath.gapAnalysis?.length > 0 && (
+              <div className="gap-analysis">
+                <h3>What Needs to Improve</h3>
+                <div className="gap-cards">
+                  {analysis.handicapPath.gapAnalysis.map((gap, i) => (
+                    <div key={i} className={`gap-card ${gap.difficulty?.toLowerCase()}`}>
+                      <div className="gap-area">{gap.area}</div>
+                      <div className="gap-comparison">
+                        <span className="gap-current">{gap.current}</span>
+                        <span className="gap-arrow">→</span>
+                        <span className="gap-required">{gap.required}</span>
+                      </div>
+                      <div className="gap-strokes">
+                        <strong>{gap.strokesToGain}</strong> strokes/round
+                      </div>
+                      <div className={`gap-difficulty ${gap.difficulty?.toLowerCase()}`}>
+                        {gap.difficulty} to improve
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Improvement Priorities */}
+            {analysis.handicapPath.improvementPriorities?.length > 0 && (
+              <div className="improvement-priorities">
+                <h3>Focus Areas (in order)</h3>
+                <div className="priority-list">
+                  {analysis.handicapPath.improvementPriorities.map((priority, i) => (
+                    <div key={i} className="priority-card">
+                      <div className="priority-rank">#{priority.rank || i + 1}</div>
+                      <div className="priority-content">
+                        <div className="priority-skill">{priority.skill}</div>
+                        <div className="priority-why">{priority.why}</div>
+                        <div className="priority-levels">
+                          <span className="current">{priority.currentLevel}</span>
+                          <span className="arrow">→</span>
+                          <span className="target">{priority.targetLevel}</span>
+                        </div>
+                        <div className="priority-how">{priority.howToImprove}</div>
+                        {priority.expectedTimeframe && (
+                          <div className="priority-time">⏱️ {priority.expectedTimeframe}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Milestones */}
+            {analysis.handicapPath.milestones?.length > 0 && (
+              <div className="milestones">
+                <h3>Milestones</h3>
+                <div className="milestone-timeline">
+                  {analysis.handicapPath.milestones.map((milestone, i) => (
+                    <div key={i} className="milestone-card">
+                      <div className="milestone-handicap">{milestone.handicap}</div>
+                      <div className="milestone-stats">{milestone.statsToReach}</div>
+                      {milestone.focusAreas?.length > 0 && (
+                        <ul className="milestone-focus">
+                          {milestone.focusAreas.map((focus, j) => (
+                            <li key={j}>{focus}</li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="milestone-time">{milestone.estimatedTimeframe}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Wins */}
+            {analysis.handicapPath.quickWins?.length > 0 && (
+              <div className="quick-wins">
+                <h3>Quick Wins — Start Today</h3>
+                <div className="quick-win-list">
+                  {analysis.handicapPath.quickWins.map((win, i) => (
+                    <div key={i} className="quick-win-card">
+                      <div className="quick-win-tip">{win.tip}</div>
+                      <div className="quick-win-meta">
+                        <span className="impact">💪 {win.impact}</span>
+                        <span className={`effort ${win.effort?.toLowerCase()}`}>{win.effort} effort</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* Extracted Scores Summary */}
         {analysis.extractedScores?.rounds?.length > 0 && (
           <section className="results-section scores-section">
@@ -4930,6 +5077,392 @@ export default function App() {
           /* Page breaks for 2-page layout */
           .strategy-section:nth-child(4) {
             page-break-before: always;
+          }
+        }
+
+        /* Handicap Path Section */
+        .handicap-path-section {
+          background: linear-gradient(135deg, rgba(124, 185, 124, 0.1) 0%, rgba(45, 90, 45, 0.15) 100%);
+          border: 1px solid rgba(124, 185, 124, 0.3);
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 24px;
+        }
+
+        .handicap-path-section .section-header {
+          margin-bottom: 24px;
+        }
+
+        .handicap-path-section h3 {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 18px;
+          color: #7cb97c;
+          margin: 24px 0 16px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid rgba(124, 185, 124, 0.2);
+        }
+
+        .handicap-comparison {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 20px;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+        }
+
+        .level-card {
+          background: rgba(0, 0, 0, 0.3);
+          border-radius: 12px;
+          padding: 20px;
+          min-width: 200px;
+          max-width: 280px;
+          flex: 1;
+        }
+
+        .level-card.current {
+          border: 2px solid rgba(255, 193, 7, 0.5);
+        }
+
+        .level-card.target {
+          border: 2px solid rgba(124, 185, 124, 0.5);
+        }
+
+        .level-badge {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          margin-bottom: 8px;
+        }
+
+        .level-card.current .level-badge {
+          color: #ffc107;
+        }
+
+        .level-card.target .level-badge {
+          color: #7cb97c;
+        }
+
+        .level-handicap {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 48px;
+          font-weight: 700;
+          line-height: 1;
+          margin-bottom: 12px;
+        }
+
+        .level-card.current .level-handicap {
+          color: #ffc107;
+        }
+
+        .level-card.target .level-handicap {
+          color: #7cb97c;
+        }
+
+        .level-profile {
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.7);
+          line-height: 1.5;
+          margin-bottom: 12px;
+        }
+
+        .level-weaknesses, .required-stats {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.8);
+        }
+
+        .level-weaknesses ul {
+          margin-top: 8px;
+          padding-left: 16px;
+        }
+
+        .level-weaknesses li {
+          margin-bottom: 4px;
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        .stats-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 8px;
+        }
+
+        .stat-item {
+          background: rgba(124, 185, 124, 0.2);
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 11px;
+          color: #a8d4a8;
+        }
+
+        .level-arrow {
+          font-size: 32px;
+          color: rgba(124, 185, 124, 0.5);
+        }
+
+        /* Gap Analysis */
+        .gap-cards {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 12px;
+        }
+
+        .gap-card {
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 10px;
+          padding: 16px;
+          border-left: 3px solid #7cb97c;
+        }
+
+        .gap-card.hard {
+          border-left-color: #e57373;
+        }
+
+        .gap-card.medium {
+          border-left-color: #ffc107;
+        }
+
+        .gap-card.easy {
+          border-left-color: #7cb97c;
+        }
+
+        .gap-area {
+          font-weight: 600;
+          color: #fff;
+          margin-bottom: 8px;
+        }
+
+        .gap-comparison {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+          font-size: 14px;
+        }
+
+        .gap-current {
+          color: rgba(255, 255, 255, 0.6);
+        }
+
+        .gap-arrow {
+          color: rgba(124, 185, 124, 0.5);
+        }
+
+        .gap-required {
+          color: #7cb97c;
+          font-weight: 600;
+        }
+
+        .gap-strokes {
+          font-size: 13px;
+          color: #a8d4a8;
+          margin-bottom: 6px;
+        }
+
+        .gap-difficulty {
+          font-size: 11px;
+          padding: 2px 8px;
+          border-radius: 10px;
+          display: inline-block;
+        }
+
+        .gap-difficulty.easy {
+          background: rgba(124, 185, 124, 0.2);
+          color: #7cb97c;
+        }
+
+        .gap-difficulty.medium {
+          background: rgba(255, 193, 7, 0.2);
+          color: #ffc107;
+        }
+
+        .gap-difficulty.hard {
+          background: rgba(229, 115, 115, 0.2);
+          color: #e57373;
+        }
+
+        /* Improvement Priorities */
+        .priority-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .priority-card {
+          display: flex;
+          gap: 16px;
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 10px;
+          padding: 16px;
+        }
+
+        .priority-rank {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 24px;
+          font-weight: 700;
+          color: #7cb97c;
+          min-width: 40px;
+        }
+
+        .priority-content {
+          flex: 1;
+        }
+
+        .priority-skill {
+          font-weight: 600;
+          font-size: 16px;
+          color: #fff;
+          margin-bottom: 6px;
+        }
+
+        .priority-why {
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.7);
+          margin-bottom: 10px;
+        }
+
+        .priority-levels {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 14px;
+          margin-bottom: 10px;
+        }
+
+        .priority-levels .current {
+          color: rgba(255, 255, 255, 0.6);
+        }
+
+        .priority-levels .arrow {
+          color: rgba(124, 185, 124, 0.5);
+        }
+
+        .priority-levels .target {
+          color: #7cb97c;
+          font-weight: 600;
+        }
+
+        .priority-how {
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.8);
+          background: rgba(124, 185, 124, 0.1);
+          padding: 10px 12px;
+          border-radius: 8px;
+          margin-bottom: 8px;
+        }
+
+        .priority-time {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Milestones */
+        .milestone-timeline {
+          display: flex;
+          gap: 16px;
+          overflow-x: auto;
+          padding-bottom: 8px;
+        }
+
+        .milestone-card {
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 10px;
+          padding: 16px;
+          min-width: 180px;
+          text-align: center;
+          border-top: 3px solid #7cb97c;
+        }
+
+        .milestone-handicap {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 32px;
+          font-weight: 700;
+          color: #7cb97c;
+          margin-bottom: 8px;
+        }
+
+        .milestone-stats {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.7);
+          margin-bottom: 10px;
+        }
+
+        .milestone-focus {
+          text-align: left;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.8);
+          padding-left: 16px;
+          margin-bottom: 10px;
+        }
+
+        .milestone-focus li {
+          margin-bottom: 4px;
+        }
+
+        .milestone-time {
+          font-size: 11px;
+          color: #a8d4a8;
+          font-weight: 500;
+        }
+
+        /* Quick Wins */
+        .quick-win-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .quick-win-card {
+          background: rgba(124, 185, 124, 0.15);
+          border-radius: 10px;
+          padding: 14px 16px;
+          border-left: 3px solid #7cb97c;
+        }
+
+        .quick-win-tip {
+          font-size: 14px;
+          color: #fff;
+          margin-bottom: 8px;
+        }
+
+        .quick-win-meta {
+          display: flex;
+          gap: 12px;
+          font-size: 12px;
+        }
+
+        .quick-win-meta .impact {
+          color: #a8d4a8;
+        }
+
+        .quick-win-meta .effort {
+          padding: 2px 8px;
+          border-radius: 10px;
+        }
+
+        .quick-win-meta .effort.low {
+          background: rgba(124, 185, 124, 0.2);
+          color: #7cb97c;
+        }
+
+        .quick-win-meta .effort.medium {
+          background: rgba(255, 193, 7, 0.2);
+          color: #ffc107;
+        }
+
+        @media (max-width: 600px) {
+          .handicap-comparison {
+            flex-direction: column;
+          }
+
+          .level-arrow {
+            transform: rotate(90deg);
+          }
+
+          .level-card {
+            max-width: 100%;
           }
         }
       `}</style>
