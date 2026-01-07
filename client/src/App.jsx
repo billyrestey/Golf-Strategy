@@ -49,6 +49,12 @@ export default function App() {
   const [isConnectingGhin, setIsConnectingGhin] = useState(false);
   const [showGhinModal, setShowGhinModal] = useState(false);
   const [ghinCredentials, setGhinCredentials] = useState({ emailOrGhin: '', password: '' });
+  
+  // GHIN lookup mode state
+  const [ghinModalMode, setGhinModalMode] = useState('lookup'); // 'lookup' or 'login'
+  const [ghinLookupQuery, setGhinLookupQuery] = useState('');
+  const [ghinLookupState, setGhinLookupState] = useState('');
+  const [ghinSearchResults, setGhinSearchResults] = useState(null);
 
   const strengthOptions = [
     { id: 'driving', label: 'Driving Distance', icon: '🚀' },
@@ -275,6 +281,119 @@ export default function App() {
     } finally {
       setIsConnectingGhin(false);
     }
+  };
+
+  // Handle GHIN lookup (no password required)
+  const handleGhinLookup = async () => {
+    const query = ghinLookupQuery.trim();
+    const isGhinNumber = /^\d+$/.test(query);
+    
+    if (!query) {
+      setError('Please enter a last name or GHIN number');
+      return;
+    }
+    
+    if (!isGhinNumber && !ghinLookupState) {
+      setError('Please select a state when searching by name');
+      return;
+    }
+
+    setIsConnectingGhin(true);
+    setError(null);
+    setGhinSearchResults(null);
+
+    try {
+      if (isGhinNumber) {
+        // Direct GHIN lookup
+        const response = await fetch(`${API_URL}/api/auth/ghin-lookup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ghinNumber: query })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Golfer not found');
+        }
+        
+        // Got a golfer, fetch their scores and populate form
+        await populateGolferData(data.golfer);
+        
+      } else {
+        // Name search - returns list
+        const response = await fetch(`${API_URL}/api/auth/ghin-search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lastName: query, state: ghinLookupState })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'No golfers found');
+        }
+        
+        // Show results for user to pick
+        setGhinSearchResults(data.results);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsConnectingGhin(false);
+    }
+  };
+
+  // When user selects a golfer from search results
+  const selectGolferFromSearch = async (golfer) => {
+    setIsConnectingGhin(true);
+    setError(null);
+    
+    try {
+      await populateGolferData(golfer);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsConnectingGhin(false);
+    }
+  };
+
+  // Populate form with golfer data and fetch scores
+  const populateGolferData = async (golfer) => {
+    // Update form with golfer info
+    setFormData(prev => ({
+      ...prev,
+      name: golfer.fullName || golfer.playerName || `${golfer.firstName} ${golfer.lastName}`,
+      handicap: golfer.handicapIndex || '',
+      homeCourse: golfer.club || ''
+    }));
+    
+    // Try to fetch scores
+    try {
+      const scoresResponse = await fetch(`${API_URL}/api/auth/ghin-scores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ghinNumber: golfer.ghinNumber })
+      });
+      
+      const scoresData = await scoresResponse.json();
+      
+      if (scoresData.success && scoresData.scores) {
+        setGhinScores({
+          scores: scoresData.scores,
+          homeCourse: scoresData.homeCourse,
+          scoresWithHoleData: scoresData.scores.filter(s => s.holeScores?.length > 0).length
+        });
+      }
+    } catch (err) {
+      console.log('Could not fetch scores:', err.message);
+    }
+    
+    setGhinConnected(true);
+    setShowGhinModal(false);
+    setGhinLookupQuery('');
+    setGhinLookupState('');
+    setGhinSearchResults(null);
   };
 
   const [previewMode, setPreviewMode] = useState(false);
@@ -1551,39 +1670,162 @@ export default function App() {
               Import your recent rounds automatically, including hole-by-hole scores when available.
             </p>
 
+            {/* Mode Toggle */}
+            <div className="ghin-mode-toggle">
+              <button 
+                className={`mode-btn ${ghinModalMode === 'lookup' ? 'active' : ''}`}
+                onClick={() => setGhinModalMode('lookup')}
+              >
+                Quick Lookup
+              </button>
+              <button 
+                className={`mode-btn ${ghinModalMode === 'login' ? 'active' : ''}`}
+                onClick={() => setGhinModalMode('login')}
+              >
+                GHIN Login
+              </button>
+            </div>
+
             {error && <div className="auth-error">{error}</div>}
 
-            <div className="form-group">
-              <label>GHIN Email or Number</label>
-              <input
-                type="text"
-                value={ghinCredentials.emailOrGhin}
-                onChange={e => setGhinCredentials(prev => ({ ...prev, emailOrGhin: e.target.value }))}
-                placeholder="email@example.com or 1234567"
-              />
-            </div>
+            {ghinModalMode === 'lookup' ? (
+              <>
+                <div className="form-group">
+                  <label>Last Name or GHIN Number</label>
+                  <input
+                    type="text"
+                    value={ghinLookupQuery}
+                    onChange={e => setGhinLookupQuery(e.target.value)}
+                    placeholder="e.g., Woods or 1234567"
+                  />
+                </div>
 
-            <div className="form-group">
-              <label>GHIN Password</label>
-              <input
-                type="password"
-                value={ghinCredentials.password}
-                onChange={e => setGhinCredentials(prev => ({ ...prev, password: e.target.value }))}
-                placeholder="Your GHIN password"
-              />
-            </div>
+                <div className="form-group">
+                  <label>State (required for name search)</label>
+                  <select 
+                    value={ghinLookupState} 
+                    onChange={e => setGhinLookupState(e.target.value)}
+                  >
+                    <option value="">Select state...</option>
+                    <option value="AL">Alabama</option>
+                    <option value="AK">Alaska</option>
+                    <option value="AZ">Arizona</option>
+                    <option value="AR">Arkansas</option>
+                    <option value="CA">California</option>
+                    <option value="CO">Colorado</option>
+                    <option value="CT">Connecticut</option>
+                    <option value="DE">Delaware</option>
+                    <option value="FL">Florida</option>
+                    <option value="GA">Georgia</option>
+                    <option value="HI">Hawaii</option>
+                    <option value="ID">Idaho</option>
+                    <option value="IL">Illinois</option>
+                    <option value="IN">Indiana</option>
+                    <option value="IA">Iowa</option>
+                    <option value="KS">Kansas</option>
+                    <option value="KY">Kentucky</option>
+                    <option value="LA">Louisiana</option>
+                    <option value="ME">Maine</option>
+                    <option value="MD">Maryland</option>
+                    <option value="MA">Massachusetts</option>
+                    <option value="MI">Michigan</option>
+                    <option value="MN">Minnesota</option>
+                    <option value="MS">Mississippi</option>
+                    <option value="MO">Missouri</option>
+                    <option value="MT">Montana</option>
+                    <option value="NE">Nebraska</option>
+                    <option value="NV">Nevada</option>
+                    <option value="NH">New Hampshire</option>
+                    <option value="NJ">New Jersey</option>
+                    <option value="NM">New Mexico</option>
+                    <option value="NY">New York</option>
+                    <option value="NC">North Carolina</option>
+                    <option value="ND">North Dakota</option>
+                    <option value="OH">Ohio</option>
+                    <option value="OK">Oklahoma</option>
+                    <option value="OR">Oregon</option>
+                    <option value="PA">Pennsylvania</option>
+                    <option value="RI">Rhode Island</option>
+                    <option value="SC">South Carolina</option>
+                    <option value="SD">South Dakota</option>
+                    <option value="TN">Tennessee</option>
+                    <option value="TX">Texas</option>
+                    <option value="UT">Utah</option>
+                    <option value="VT">Vermont</option>
+                    <option value="VA">Virginia</option>
+                    <option value="WA">Washington</option>
+                    <option value="WV">West Virginia</option>
+                    <option value="WI">Wisconsin</option>
+                    <option value="WY">Wyoming</option>
+                  </select>
+                </div>
 
-            <button 
-              className="ghin-submit-btn"
-              onClick={connectGhin}
-              disabled={isConnectingGhin}
-            >
-              {isConnectingGhin ? 'Connecting...' : 'Connect & Import Scores'}
-            </button>
+                {/* Search Results */}
+                {ghinSearchResults && ghinSearchResults.length > 0 && (
+                  <div className="ghin-search-results">
+                    {ghinSearchResults.map((golfer, i) => (
+                      <div 
+                        key={i} 
+                        className="ghin-result-item"
+                        onClick={() => selectGolferFromSearch(golfer)}
+                      >
+                        <div className="result-handicap">{golfer.handicapIndex || 'N/A'}</div>
+                        <div className="result-info">
+                          <div className="result-name">{golfer.fullName}</div>
+                          <div className="result-club">{golfer.club || ''}{golfer.club && golfer.state ? ' · ' : ''}{golfer.state || ''}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-            <p className="ghin-note">
-              🔒 Your credentials are used only to fetch your scores and are not stored.
-            </p>
+                <button 
+                  className="ghin-submit-btn"
+                  onClick={handleGhinLookup}
+                  disabled={isConnectingGhin}
+                >
+                  {isConnectingGhin ? 'Searching...' : 'Find Golfer'}
+                </button>
+
+                <p className="ghin-note">
+                  🔍 No password needed - just search by name or GHIN number.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="form-group">
+                  <label>GHIN Email or Number</label>
+                  <input
+                    type="text"
+                    value={ghinCredentials.emailOrGhin}
+                    onChange={e => setGhinCredentials(prev => ({ ...prev, emailOrGhin: e.target.value }))}
+                    placeholder="email@example.com or 1234567"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>GHIN Password</label>
+                  <input
+                    type="password"
+                    value={ghinCredentials.password}
+                    onChange={e => setGhinCredentials(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Your GHIN password"
+                  />
+                </div>
+
+                <button 
+                  className="ghin-submit-btn"
+                  onClick={connectGhin}
+                  disabled={isConnectingGhin}
+                >
+                  {isConnectingGhin ? 'Connecting...' : 'Connect & Import Scores'}
+                </button>
+
+                <p className="ghin-note">
+                  🔒 Your credentials are used only to fetch your scores and are not stored.
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -2666,6 +2908,108 @@ export default function App() {
 
         .ghin-modal {
           max-width: 420px;
+        }
+
+        .ghin-mode-toggle {
+          display: flex;
+          gap: 0;
+          margin-bottom: 20px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 8px;
+          padding: 4px;
+        }
+
+        .ghin-mode-toggle .mode-btn {
+          flex: 1;
+          padding: 10px 16px;
+          background: transparent;
+          border: none;
+          color: rgba(240, 244, 232, 0.6);
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          border-radius: 6px;
+          transition: all 0.2s;
+          font-family: inherit;
+        }
+
+        .ghin-mode-toggle .mode-btn.active {
+          background: rgba(124, 185, 124, 0.2);
+          color: #7cb97c;
+        }
+
+        .ghin-mode-toggle .mode-btn:hover:not(.active) {
+          color: rgba(240, 244, 232, 0.8);
+        }
+
+        .ghin-modal select {
+          width: 100%;
+          padding: 14px 16px;
+          background: rgba(255, 255, 255, 0.95);
+          border: none;
+          border-radius: 10px;
+          font-size: 15px;
+          color: #1a3a1a;
+          font-family: inherit;
+          cursor: pointer;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231a3a1a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 16px center;
+        }
+
+        .ghin-search-results {
+          max-height: 240px;
+          overflow-y: auto;
+          margin: 16px 0;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.03);
+        }
+
+        .ghin-result-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          cursor: pointer;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          transition: background 0.2s;
+        }
+
+        .ghin-result-item:hover {
+          background: rgba(124, 185, 124, 0.1);
+        }
+
+        .ghin-result-item:last-child {
+          border-bottom: none;
+        }
+
+        .ghin-result-item .result-handicap {
+          width: 48px;
+          height: 48px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(124, 185, 124, 0.15);
+          border-radius: 8px;
+          font-size: 16px;
+          font-weight: 600;
+          color: #7cb97c;
+        }
+
+        .ghin-result-item .result-info {
+          flex: 1;
+        }
+
+        .ghin-result-item .result-name {
+          font-weight: 600;
+          color: #f0f4e8;
+          margin-bottom: 2px;
+        }
+
+        .ghin-result-item .result-club {
+          font-size: 13px;
+          color: rgba(240, 244, 232, 0.5);
         }
 
         .ghin-submit-btn {
