@@ -1149,6 +1149,12 @@ export default function App() {
     if (previewMode) {
       return (
         <div className="results-container preview-mode">
+          <div className="results-nav">
+            <button className="back-btn" onClick={resetForm}>
+              ← Back
+            </button>
+            <span className="nav-logo">Preview</span>
+          </div>
           {/* Teaser Header - Always Visible */}
           <div className="teaser-header">
             <div className="teaser-badge">
@@ -1253,6 +1259,12 @@ export default function App() {
     // Full results view
     return (
       <div className="results-container">
+        <div className="results-nav">
+          <button className="back-btn" onClick={resetForm}>
+            ← Back
+          </button>
+          <span className="nav-logo">Your Strategy</span>
+        </div>
         <div className="results-header">
           <div className="results-title">
             <h1>{formData.name}'s Game Plan</h1>
@@ -3420,6 +3432,40 @@ export default function App() {
         .results-container {
           padding: 40px 24px 80px;
           position: relative;
+        }
+
+        .results-container .results-nav {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 24px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid rgba(240, 244, 232, 0.1);
+          max-width: 900px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+
+        .results-container .results-nav .back-btn {
+          background: rgba(240, 244, 232, 0.1);
+          border: 1px solid rgba(240, 244, 232, 0.2);
+          color: #f0f4e8;
+          padding: 8px 16px;
+          border-radius: 8px;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .results-container .results-nav .back-btn:hover {
+          background: rgba(240, 244, 232, 0.15);
+          border-color: rgba(240, 244, 232, 0.3);
+        }
+
+        .results-container .results-nav .nav-logo {
+          color: rgba(240, 244, 232, 0.6);
+          font-size: 14px;
+          font-weight: 500;
         }
 
         /* Preview/Teaser Mode Styles */
