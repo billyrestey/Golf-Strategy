@@ -5,7 +5,7 @@ let adminToken = null;
 let adminTokenExpiry = null;
 
 // Authenticate with GHIN API using admin credentials (for basic lookups)
-async function authenticateAdmin() {
+export async function authenticateAdmin() {
   if (adminToken && adminTokenExpiry && Date.now() < adminTokenExpiry) {
     return adminToken;
   }
@@ -20,7 +20,7 @@ async function authenticateAdmin() {
 
   try {
     console.log('Authenticating with GHIN (admin)...');
-    const response = await fetch('https://api2.ghin.com/api/v1/golfer_login.json', {
+    const response = await fetch('https://api.ghin.com/api/v1/golfer_login.json', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -63,7 +63,7 @@ async function authenticateAdmin() {
 export async function authenticateUser(emailOrGhin, password) {
   try {
     console.log('Authenticating GHIN user:', emailOrGhin);
-    const response = await fetch('https://api2.ghin.com/api/v1/golfer_login.json', {
+    const response = await fetch('https://api.ghin.com/api/v1/golfer_login.json', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ export async function authenticateUser(emailOrGhin, password) {
         token: data.golfer_user.golfer_user_token,
         golfer: {
           id: primaryGolfer.id || data.golfer_user.golfer_id,
-          ghinNumber: primaryGolfer.ghin_number || data.golfer_user.ghin_number || data.golfer_user.golfer_id,
+          ghinNumber: primaryGolfer.ghin || primaryGolfer.ghin_number || data.golfer_user.ghin_number || data.golfer_user.golfer_id,
           firstName: data.golfer_user.first_name || primaryGolfer.first_name,
           lastName: data.golfer_user.last_name || primaryGolfer.last_name,
           playerName: primaryGolfer.player_name,
@@ -158,43 +158,35 @@ export async function getDetailedScores(ghinNumber, userToken, limit = 20, homeC
   try {
     console.log('Fetching detailed GHIN scores for:', ghinNumber);
     
-    // Try multiple endpoints - same approach as working RoastMyGolfGame app
-    const scoresUrls = [
-      `https://api2.ghin.com/api/v1/golfers/${ghinNumber}/scores.json`,
-      `https://api2.ghin.com/api/v1/scores.json?golfer_id=${ghinNumber}`,
-    ];
+    // Use the correct API endpoint
+    const today = new Date().toISOString().split('T')[0];
+    const lastYear = new Date(Date.now() - 365*24*60*60*1000).toISOString().split('T')[0];
+    const scoresUrl = `https://api.ghin.com/api/v1/scores/search.json?per_page=${limit}&page=1&golfer_id=${ghinNumber}&from_date_played=${lastYear}&to_date_played=${today}`;
 
     let rawScores = [];
     
-    for (const url of scoresUrls) {
-      try {
-        console.log('Trying scores URL:', url);
-        const scoresResponse = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${userToken}`
-          }
-        });
-
-        console.log('Scores response status:', scoresResponse.status);
-
-        if (scoresResponse.ok) {
-          const scoresData = await scoresResponse.json();
-          console.log('Scores data keys:', Object.keys(scoresData));
-          
-          // Try different possible score array locations
-          rawScores = scoresData.scores || scoresData.recent_scores || scoresData.score_list || [];
-          console.log('Total scores found:', rawScores.length);
-          
-          if (rawScores.length > 0) {
-            break; // Found scores, stop trying other URLs
-          }
+    try {
+      console.log('Trying scores URL:', scoresUrl);
+      const scoresResponse = await fetch(scoresUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${userToken}`
         }
-      } catch (urlErr) {
-        console.error('Error fetching scores from', url, ':', urlErr.message);
+      });
+
+      console.log('Scores response status:', scoresResponse.status);
+
+      if (scoresResponse.ok) {
+        const scoresData = await scoresResponse.json();
+        console.log('Scores data keys:', Object.keys(scoresData));
+        
+        // GHIN API returns 'Scores' with capital S
+        rawScores = scoresData.Scores || scoresData.scores || scoresData.recent_scores || [];
+        console.log('Total scores found:', rawScores.length);
       }
+    } catch (urlErr) {
+      console.error('Error fetching scores:', urlErr.message);
     }
     
     if (rawScores.length === 0) {
@@ -674,13 +666,12 @@ export async function lookupGHIN(ghinNumber) {
 
     console.log('Looking up GHIN:', ghinNumber);
     
-    // Search for golfer by GHIN number
+    // Search for golfer by GHIN number using correct API
     const response = await fetch(
-      `https://api2.ghin.com/api/v1/golfers.json?golfer_id=${ghinNumber}&from_ghin=true`,
+      `https://api.ghin.com/api/v1/golfers/search.json?per_page=1&page=1&golfer_id=${ghinNumber}&status=Active`,
       {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': `Bearer ${token}`
         }
@@ -705,10 +696,10 @@ export async function lookupGHIN(ghinNumber) {
       return {
         success: true,
         golfer: {
-          ghinNumber: golfer.ghin,
+          ghinNumber: golfer.ghin || golfer.ghin_number,
           firstName: golfer.first_name,
           lastName: golfer.last_name,
-          fullName: `${golfer.first_name} ${golfer.last_name}`,
+          fullName: golfer.player_name || `${golfer.first_name} ${golfer.last_name}`,
           handicapIndex: golfer.handicap_index,
           lowHandicapIndex: golfer.low_hi,
           club: golfer.club_name,
@@ -732,6 +723,77 @@ export async function lookupGHIN(ghinNumber) {
       success: false, 
       requiresManualEntry: true,
       error: 'GHIN lookup failed. Please enter your handicap manually.' 
+    };
+  }
+}
+
+// Look up golfers by last name and state
+export async function lookupByName(lastName, state) {
+  try {
+    const token = await authenticateAdmin();
+    
+    if (!token) {
+      return { 
+        success: false, 
+        error: 'GHIN service unavailable.' 
+      };
+    }
+
+    console.log('Looking up golfer by name:', lastName, 'State:', state);
+    
+    const response = await fetch(
+      `https://api.ghin.com/api/v1/golfers/search.json?per_page=10&page=1&last_name=${encodeURIComponent(lastName)}&state=${encodeURIComponent(state)}&country=USA&status=Active`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+
+    console.log('Name search response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('GHIN name search failed:', response.status, errorText);
+      return { 
+        success: false, 
+        error: 'Search failed. Please try again.' 
+      };
+    }
+
+    const data = await response.json();
+    const golfers = data.golfers || [];
+    console.log('Golfers found:', golfers.length);
+    
+    if (golfers.length > 0) {
+      return {
+        success: true,
+        results: golfers.slice(0, 10).map(g => ({
+          ghinNumber: g.ghin || g.ghin_number,
+          firstName: g.first_name,
+          lastName: g.last_name,
+          fullName: g.player_name || `${g.first_name} ${g.last_name}`,
+          handicapIndex: g.handicap_index,
+          lowHandicapIndex: g.low_hi,
+          club: g.club_name,
+          city: g.city,
+          state: g.state
+        }))
+      };
+    }
+
+    return { 
+      success: false, 
+      error: 'No golfers found with that name in ' + state + '.' 
+    };
+
+  } catch (error) {
+    console.error('GHIN name lookup error:', error);
+    return { 
+      success: false, 
+      error: 'Search failed. Please try again.' 
     };
   }
 }

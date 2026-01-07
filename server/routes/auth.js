@@ -2,9 +2,68 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { createUser, findUserByEmail, findUserById, findUserByGhin, updateUser } from '../db/database.js';
-import { authenticateUser } from '../services/ghin.js';
+import { authenticateUser, lookupGHIN, lookupByName, getDetailedScores } from '../services/ghin.js';
 
 const router = express.Router();
+
+// Public GHIN lookup by number (no auth required)
+router.post('/ghin-lookup', async (req, res) => {
+  try {
+    const { ghinNumber } = req.body;
+    
+    if (!ghinNumber) {
+      return res.status(400).json({ error: 'GHIN number required' });
+    }
+    
+    const result = await lookupGHIN(ghinNumber);
+    res.json(result);
+  } catch (error) {
+    console.error('GHIN lookup error:', error);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
+// Public GHIN lookup by name + state (no auth required)
+router.post('/ghin-search', async (req, res) => {
+  try {
+    const { lastName, state } = req.body;
+    
+    if (!lastName || !state) {
+      return res.status(400).json({ error: 'Last name and state required' });
+    }
+    
+    const result = await lookupByName(lastName, state);
+    res.json(result);
+  } catch (error) {
+    console.error('GHIN search error:', error);
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// Get scores for a golfer using admin token (limited data)
+router.post('/ghin-scores', async (req, res) => {
+  try {
+    const { ghinNumber } = req.body;
+    
+    if (!ghinNumber) {
+      return res.status(400).json({ error: 'GHIN number required' });
+    }
+    
+    // Use admin token for basic score fetch
+    const { authenticateAdmin } = await import('../services/ghin.js');
+    const token = await authenticateAdmin();
+    
+    if (!token) {
+      return res.status(500).json({ error: 'GHIN service unavailable' });
+    }
+    
+    const result = await getDetailedScores(ghinNumber, token, 20, false);
+    res.json(result);
+  } catch (error) {
+    console.error('GHIN scores error:', error);
+    res.status(500).json({ error: 'Failed to fetch scores' });
+  }
+});
 
 // Register with GHIN - authenticate with GHIN and create/login account
 router.post('/register-with-ghin', async (req, res) => {
