@@ -340,23 +340,23 @@ export function generateStrategyPDF(analysis, userData) {
 
         // Header - taller to accommodate content
         doc.rect(0, 0, doc.page.width, 85).fill(colors.darkGreen);
-        
+
         // Truncate course name if too long
         const courseName = (userData.homeCourse || 'COURSE STRATEGY').toUpperCase();
         const displayName = courseName.length > 35 ? courseName.substring(0, 35) + '...' : courseName;
-        
+
         doc.fillColor('white')
            .fontSize(18)
            .font('Helvetica-Bold')
            .text(displayName, leftMargin, 15, { width: pageWidth, lineBreak: false });
-        
+
         doc.fontSize(10)
            .font('Helvetica')
            .fillColor('rgba(255,255,255,0.8)')
            .text(`Course Strategy Card — ${userData.name} — ${new Date().getFullYear()} Season`, leftMargin, 38, { lineBreak: false });
 
         // Truncate key insight
-        const keyInsight = (analysis.summary?.keyInsight || 'Play smart golf').substring(0, 45);
+        const keyInsight = (analysis.summary?.keyInsight || 'Play smart golf').substring(0, 50);
         doc.fontSize(8)
            .text(`GOAL: ${analysis.summary?.currentHandicap || userData.handicap} → ${analysis.summary?.targetHandicap || '?'} | KEY: ${keyInsight}...`, leftMargin, 55, { width: pageWidth, lineBreak: false });
 
@@ -367,29 +367,29 @@ export function generateStrategyPDF(analysis, userData) {
            .fontSize(8)
            .font('Helvetica-Bold')
            .text('TEE SHOT:', leftMargin, yPos, { lineBreak: false });
-        
+
         doc.circle(leftMargin + 55, yPos + 4, 5).fill(colors.green);
         doc.fillColor(colors.darkGreen)
            .text('Driver OK', leftMargin + 65, yPos, { lineBreak: false });
-        
+
         doc.circle(leftMargin + 125, yPos + 4, 5).fill(colors.yellow);
         doc.fillColor(colors.darkGreen)
            .text('Conditional', leftMargin + 135, yPos, { lineBreak: false });
-        
+
         doc.circle(leftMargin + 205, yPos + 4, 5).fill(colors.red);
         doc.fillColor(colors.darkGreen)
            .text('3-Hybrid/Iron Only', leftMargin + 215, yPos, { lineBreak: false });
 
         yPos = 115;
 
-        // Table header
-        const colWidths = { hole: 35, par: 60, tee: 85, strategy: 230, notes: 100 };
-        
+        // Table header - adjusted column widths for better layout
+        const colWidths = { hole: 30, par: 55, tee: 90, strategy: 210, notes: 125 };
+
         doc.rect(leftMargin, yPos, pageWidth, 20).fill(colors.lightGray);
         doc.fillColor(colors.darkGreen)
            .fontSize(8)
            .font('Helvetica-Bold');
-        
+
         let xPos = leftMargin + 5;
         doc.text('HOLE', xPos, yPos + 6, { lineBreak: false });
         xPos += colWidths.hole;
@@ -403,60 +403,108 @@ export function generateStrategyPDF(analysis, userData) {
 
         yPos += 25;
 
+        // Build hole averages lookup from extractedScores if available
+        const holeAverages = {};
+        if (analysis.extractedScores?.rounds?.length > 0) {
+          analysis.extractedScores.rounds.forEach(round => {
+            if (round.holes) {
+              round.holes.forEach(hole => {
+                if (hole.hole && hole.score) {
+                  if (!holeAverages[hole.hole]) {
+                    holeAverages[hole.hole] = { total: 0, count: 0, par: hole.par };
+                  }
+                  holeAverages[hole.hole].total += hole.score;
+                  holeAverages[hole.hole].count++;
+                }
+              });
+            }
+          });
+          // Calculate averages
+          Object.keys(holeAverages).forEach(h => {
+            const data = holeAverages[h];
+            if (data.count > 0) {
+              data.avg = (data.total / data.count).toFixed(1);
+              data.vspar = (data.avg - data.par).toFixed(1);
+            }
+          });
+        }
+
         // Hole rows - Front 9
         const front9 = analysis.holeByHoleStrategy.slice(0, 9);
         const back9 = analysis.holeByHoleStrategy.slice(9, 18);
-        
+
         const drawHoleRow = (hole, y) => {
-          const rowHeight = 32;
+          const rowHeight = 34;
           const isOdd = hole.hole % 2 === 1;
-          
+
           // Alternate row background
           if (isOdd) {
             doc.rect(leftMargin, y, pageWidth, rowHeight).fill('#fafaf8');
           }
 
           // Light indicator
-          const lightColor = hole.light === 'red' ? colors.red : 
+          const lightColor = hole.light === 'red' ? colors.red :
                             hole.light === 'yellow' ? colors.yellow : colors.green;
-          doc.circle(leftMargin + 20, y + rowHeight/2, 6).fill(lightColor);
+          doc.circle(leftMargin + 18, y + rowHeight/2, 6).fill(lightColor);
 
-          doc.fillColor(colors.darkGreen).fontSize(8).font('Helvetica-Bold');
-          
+          doc.fillColor(colors.darkGreen).fontSize(9).font('Helvetica-Bold');
+
           let x = leftMargin + 5;
-          
+
           // Hole number
-          doc.text(hole.hole.toString(), x + 25, y + 8, { lineBreak: false });
+          doc.text(hole.hole.toString(), x + 22, y + 10, { lineBreak: false });
           x += colWidths.hole;
-          
+
           // Par/Yards
           doc.font('Helvetica')
              .fontSize(8)
              .text(`Par ${hole.par}`, x, y + 6, { lineBreak: false });
           doc.fillColor(colors.gray)
              .fontSize(7)
-             .text(`${hole.yards || '---'} yds`, x, y + 16, { lineBreak: false });
+             .text(`${hole.yards || '---'} yds`, x, y + 17, { lineBreak: false });
           x += colWidths.par;
-          
-          // Tee shot
+
+          // Tee shot - show club recommendation
+          const teeShot = (hole.teeShot || 'Driver').substring(0, 18);
           doc.fillColor(colors.darkGreen)
              .fontSize(8)
              .font('Helvetica-Bold')
-             .text((hole.teeShot || 'Driver').substring(0, 15), x, y + 10, { lineBreak: false });
+             .text(teeShot, x, y + 10, { lineBreak: false });
           x += colWidths.tee;
-          
-          // Strategy
+
+          // Strategy - combine main strategy with approach if available
+          let strategyText = hole.strategy || '';
+          if (hole.approachStrategy && strategyText.length < 40) {
+            strategyText += ' ' + hole.approachStrategy;
+          }
           doc.fillColor(colors.gray)
              .fontSize(7)
              .font('Helvetica')
-             .text((hole.strategy || '').substring(0, 65), x, y + 6, { width: colWidths.strategy - 10, height: 22 });
+             .text(strategyText.substring(0, 70), x, y + 4, { width: colWidths.strategy - 10, height: 26 });
           x += colWidths.strategy;
-          
-          // Notes
+
+          // Notes - Include historical average if available
+          let notesText = hole.notes || '';
+          const holeAvg = holeAverages[hole.hole];
+          if (holeAvg?.avg) {
+            const vsPar = parseFloat(holeAvg.vspar);
+            let perfNote = '';
+            if (vsPar <= -0.3) {
+              perfNote = `${holeAvg.avg} avg - birdie opp`;
+            } else if (vsPar <= 0.2) {
+              perfNote = `${holeAvg.avg} avg - solid hole`;
+            } else if (vsPar <= 0.7) {
+              perfNote = `${holeAvg.avg} avg - stay focused`;
+            } else {
+              perfNote = `${holeAvg.avg} avg - trouble spot`;
+            }
+            notesText = perfNote + (notesText ? ' • ' + notesText : '');
+          }
+
           doc.fillColor(colors.mediumGreen)
              .fontSize(7)
              .font('Helvetica-Oblique')
-             .text((hole.notes || '').substring(0, 30), x, y + 10, { width: colWidths.notes - 10, lineBreak: false });
+             .text(notesText.substring(0, 45), x, y + 4, { width: colWidths.notes - 5, height: 26 });
 
           return rowHeight;
         };
@@ -468,13 +516,13 @@ export function generateStrategyPDF(analysis, userData) {
         });
 
         // Turn divider
-        yPos += 5;
+        yPos += 3;
         doc.rect(leftMargin, yPos, pageWidth, 18).fill(colors.darkGreen);
         doc.fillColor('white')
            .fontSize(9)
            .font('Helvetica-Bold')
            .text('BACK 9', leftMargin + pageWidth/2 - 20, yPos + 4, { lineBreak: false });
-        yPos += 23;
+        yPos += 21;
 
         // Back 9
         back9.forEach((hole, i) => {
@@ -482,36 +530,38 @@ export function generateStrategyPDF(analysis, userData) {
           yPos += rowHeight;
         });
 
-        // Bottom mantra - ensure it fits on page (check remaining space)
+        // Bottom section - ensure it fits
         const remainingSpace = doc.page.height - yPos - 50;
-        if (remainingSpace < 80) {
-          // Not enough space, skip mantra/targets to avoid orphaned pages
-          // Just end cleanly
-        } else {
-          yPos += 10;
-          doc.rect(leftMargin, yPos, pageWidth, 30).fill(colors.lightGray);
-          doc.rect(leftMargin, yPos, 4, 30).fill(colors.lightGreen);
-          
-          const mantra = analysis.mentalGame?.mantras?.[0] || 
+        if (remainingSpace >= 60) {
+          yPos += 8;
+          doc.rect(leftMargin, yPos, pageWidth, 28).fill(colors.lightGray);
+          doc.rect(leftMargin, yPos, 4, 28).fill(colors.lightGreen);
+
+          const mantra = analysis.mentalGame?.mantras?.[0] ||
                         analysis.courseStrategy?.overallApproach ||
                         'Play to your strengths. Trust your swing.';
           doc.fillColor(colors.darkGreen)
              .fontSize(8)
              .font('Helvetica-Bold')
-             .text('MANTRA:', leftMargin + 15, yPos + 6, { lineBreak: false });
+             .text('FOCUS:', leftMargin + 15, yPos + 8, { lineBreak: false });
           doc.fillColor(colors.gray)
              .fontSize(9)
              .font('Helvetica-Oblique')
-             .text(`"${mantra.substring(0, 80)}"`, leftMargin + 70, yPos + 6, { width: pageWidth - 100, lineBreak: false });
+             .text(`"${mantra.substring(0, 85)}"`, leftMargin + 60, yPos + 8, { width: pageWidth - 90, lineBreak: false });
 
-          // Bottom targets - single line
-          yPos += 35;
-          const targets = `Target: ${analysis.targetStats?.fairwaysHit || '40%'} fairways | ${analysis.targetStats?.penaltiesPerRound || '< 2'} penalties/round | ${(analysis.mentalGame?.preShot || 'Trust your swing').substring(0, 35)}`;
-          
+          // Bottom targets
+          yPos += 32;
+          const par3Target = analysis.targetStats?.par3Average || '';
+          const par5Target = analysis.targetStats?.par5Average || '';
+          let targetLine = `Targets: ${analysis.targetStats?.fairwaysHit || '40%'} FW | ${analysis.targetStats?.gir || '25%'} GIR | ${analysis.targetStats?.penaltiesPerRound || '<2'} penalties`;
+          if (par3Target || par5Target) {
+            targetLine += ` | Par 3s: ${par3Target || '-'} | Par 5s: ${par5Target || '-'}`;
+          }
+
           doc.fillColor(colors.gray)
              .fontSize(7)
              .font('Helvetica')
-             .text(targets, leftMargin, yPos, { width: pageWidth, align: 'center', lineBreak: false });
+             .text(targetLine, leftMargin, yPos, { width: pageWidth, align: 'center', lineBreak: false });
         }
       }
 
