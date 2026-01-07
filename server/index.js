@@ -171,7 +171,7 @@ app.get('/api/health', (req, res) => {
 // Main analysis endpoint - supports both preview and authenticated modes
 app.post('/api/analyze', analysisLimiter, optionalAuth, upload.array('scorecards', 10), handleMulterError, checkTotalSize, async (req, res) => {
   try {
-    const { name, handicap, homeCourse, missPattern, missDescription, strengths, preview, ghinScores, courseDetails, aggregateStats } = req.body;
+    const { name, handicap, targetHandicap, homeCourse, missPattern, missDescription, strengths, preview, ghinScores, courseDetails, aggregateStats } = req.body;
     const isPreview = preview === 'true';
     const userId = req.user?.userId;
 
@@ -221,6 +221,7 @@ app.post('/api/analyze', analysisLimiter, optionalAuth, upload.array('scorecards
     const analysis = await analyzeGolfGame({
       name,
       handicap: parseFloat(handicap),
+      targetHandicap: targetHandicap ? parseFloat(targetHandicap) : null,
       homeCourse,
       missPattern,
       missDescription: missDescription || '',

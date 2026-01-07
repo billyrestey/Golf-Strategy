@@ -416,6 +416,7 @@ export default function App() {
       const submitData = new FormData();
       submitData.append('name', formData.name);
       submitData.append('handicap', formData.handicap);
+      submitData.append('targetHandicap', formData.targetHandicap || '');
       submitData.append('homeCourse', formData.homeCourse);
       submitData.append('missPattern', formData.missPattern);
       submitData.append('missDescription', formData.missDescription);

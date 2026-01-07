@@ -10,6 +10,7 @@ const anthropic = new Anthropic({
 export async function analyzeGolfGame({
   name,
   handicap,
+  targetHandicap,
   homeCourse,
   missPattern,
   missDescription,
@@ -58,6 +59,7 @@ export async function analyzeGolfGame({
   const analysis = await generateStrategy({
     name,
     handicap,
+    targetHandicap,
     homeCourse,
     missPattern,
     missDescription,
@@ -134,6 +136,7 @@ Only return valid JSON, no other text.`
 async function generateStrategy({
   name,
   handicap,
+  targetHandicap,
   homeCourse,
   missPattern,
   missDescription,
@@ -307,6 +310,7 @@ ${parts.join('\n\n')}
 ## GOLFER PROFILE
 - Name: ${name}
 - Current Handicap: ${handicap}
+- Target Handicap: ${targetHandicap || 'Not specified - suggest a realistic 12-month goal'}
 - Home Course: ${homeCourse}
 - Primary Miss Pattern: ${getMissDescription(missPattern)}
 ${missDescription ? `- Additional Context: ${missDescription}` : ''}
@@ -323,7 +327,7 @@ ${hasCourseData ? '\nIMPORTANT: Use the ACTUAL course layout data provided above
 {
   "summary": {
     "currentHandicap": number,
-    "targetHandicap": number (realistic 12-month goal),
+    "targetHandicap": number (USE THE USER'S TARGET HANDICAP FROM PROFILE IF SPECIFIED - do not override their goal),
     "potentialStrokeDrop": number,
     "keyInsight": "One sentence summary of biggest opportunity - should reference actual data patterns if available",
     "biggestStrokeSaver": "The single area where they can save the most strokes (based on data analysis)"
@@ -539,17 +543,25 @@ ${hasCourseData ? '\nIMPORTANT: Use the ACTUAL course layout data provided above
 
 Important guidelines:
 1. ${hasAggregateStats ? 'PRIORITIZE DATA over self-reported miss patterns. If the data shows they miss greens short 60% of the time, address that. If they struggle on par 5s, focus there.' : 'Be specific to their miss pattern.'} A slicer needs different advice than a hooker, but DATA trumps self-reports.
-2. If performance analytics show par-type weaknesses, make those central to your recommendations.
-3. Address ALL scoring areas - not just tee shots. Approach play, short game, and putting improvements often yield faster results.
-4. If scorecard data is available, include all 18 holes in holeByHoleStrategy with approach strategy and miss side for EACH hole.
-5. Practice plan priority areas should be ranked by strokes-saved potential based on actual data.
-6. Be encouraging but realistic about improvement timeline.
-7. The strategy should feel personalized and data-driven, not generic.
-8. For holeByHoleStrategy, "light" should be: "red" for danger holes, "yellow" for conditional, "green" for birdie opportunities.
-9. NOTE: Many golfers post 9-hole rounds to GHIN. Do NOT make deductions about "inconsistent play" based on round data.
-10. If green miss pattern data is available, use it to recommend approach targets and miss sides.
-11. Consider penalty analysis - if they're losing strokes to penalties on specific holes, address course management.
-12. HANDICAP PATH: Use these benchmark stats for different handicap levels:
+2. TARGET HANDICAP: If the user specified a target handicap, USE IT EXACTLY. Do not override their goal with what you think is "realistic." The user knows their goals - build the plan around achieving THEIR target.
+3. If performance analytics show par-type weaknesses, make those central to your recommendations.
+4. Address ALL scoring areas - not just tee shots. Approach play, short game, and putting improvements often yield faster results.
+5. WHEN GIR/FAIRWAYS DATA IS MISSING: Many users don't track detailed stats. Focus analysis on:
+   - Hole-by-hole scoring patterns (where are they making big numbers?)
+   - Par-type performance (par 3/4/5 averages from score data)
+   - Scoring distribution (birdies, pars, bogeys, doubles+)
+   - Total score trends and consistency
+   - Specific trouble holes identified from scores
+   - This is valuable data even without GIR/fairways tracking!
+6. If scorecard data is available, include all 18 holes in holeByHoleStrategy with approach strategy and miss side for EACH hole.
+7. Practice plan priority areas should be ranked by strokes-saved potential based on actual data.
+8. Be encouraging but realistic about improvement timeline.
+9. The strategy should feel personalized and data-driven, not generic.
+10. For holeByHoleStrategy, "light" should be: "red" for danger holes, "yellow" for conditional, "green" for birdie opportunities.
+11. NOTE: Many golfers post 9-hole rounds to GHIN. Do NOT make deductions about "inconsistent play" based on round data.
+12. If green miss pattern data is available, use it to recommend approach targets and miss sides.
+13. Consider penalty analysis - if they're losing strokes to penalties on specific holes, address course management.
+14. HANDICAP PATH: Use these benchmark stats for different handicap levels:
     - Scratch (0): 65% fairways, 67% GIR, 29 putts, 60% up-and-down, <0.5 penalties
     - 5 handicap: 55% fairways, 50% GIR, 31 putts, 50% up-and-down, <1 penalty
     - 10 handicap: 45% fairways, 35% GIR, 33 putts, 40% up-and-down, <1.5 penalties
@@ -557,8 +569,8 @@ Important guidelines:
     - 20 handicap: 30% fairways, 12% GIR, 37 putts, 20% up-and-down, <3 penalties
     - 25+ handicap: 25% fairways, 5% GIR, 38+ putts, 15% up-and-down, 3+ penalties
     Use these to create realistic gap analysis and milestones. If they're a 15 going to 10, show what stats need to improve.
-13. For improvementPriorities, rank by IMPACT - which skill improvement will drop the most strokes? Usually: reducing penalties > improving GIR > improving up-and-down > reducing 3-putts.
-14. Include 2-3 milestones for handicap drops of 5+ strokes (e.g., 18→10 should have milestones at 15 and 12).
+15. For improvementPriorities, rank by IMPACT - which skill improvement will drop the most strokes? Usually: reducing penalties > improving GIR > improving up-and-down > reducing 3-putts.
+16. Include 2-3 milestones for handicap drops of 5+ strokes (e.g., 18→10 should have milestones at 15 and 12).
 
 Return ONLY the JSON object, no other text.`;
 
